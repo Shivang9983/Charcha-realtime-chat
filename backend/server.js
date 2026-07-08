@@ -19,9 +19,11 @@ const __dirname = path.resolve();
 // Middleware configuration
 app.use(express.json());
 app.use(cookieParser());
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'production'
+    origin: isProduction
       ? 'https://charcha-ivory.vercel.app'
       : 'http://localhost:5173',
     credentials: true,
