@@ -31,18 +31,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend', 'dist', 'index.html'));
-  });
-} else {
-  app.get('/', (req, res) => {
-    res.send('Chat App API is running successfully!');
-  });
-}
+app.get('/', (req, res) => {
+  res.send('Charcha Backend API is running successfully!');
+});
 
 // Listen to port and establish database connection
 server.listen(PORT, () => {
