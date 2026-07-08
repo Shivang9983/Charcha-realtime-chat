@@ -1,4 +1,8 @@
-<div align="center"># 💬 Charcha – Real-Time Chat Application>
+<div align="center">
+
+# 💬 Charcha – Real-Time Chat Application
+
+</div>
 
 <div align="center">
 
