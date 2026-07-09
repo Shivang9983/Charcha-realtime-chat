@@ -1,38 +1,50 @@
+import { useEffect, useState } from 'react';
 import { useChatStore } from '../stores/useChatStore';
 import Sidebar from '../components/Sidebar';
 import ChatContainer from '../components/ChatContainer';
-import { MessageSquare } from 'lucide-react';
 
 export default function HomePage() {
   const { selectedConversation } = useChatStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
-    <div className="fixed inset-0 flex bg-white dark:bg-black overflow-hidden text-slate-900 dark:text-slate-100">
+    <div className={`fixed inset-0 flex bg-white dark:bg-black overflow-hidden text-slate-900 dark:text-slate-100 transition-opacity duration-300 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
       {/* Sidebar - Hidden on mobile if a chat is active */}
-      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex md:flex'} flex-shrink-0 h-full w-full md:w-80`}>
+      <div className={`flex-shrink-0 h-full w-full md:w-80 transition-transform duration-300 ${selectedConversation ? 'hidden md:flex' : 'flex md:flex'}`}>
         <Sidebar />
       </div>
 
       {/* Chat pane or placeholder */}
-      <div className={`flex-1 min-h-0 h-full flex flex-col ${!selectedConversation ? 'hidden md:flex' : 'w-full md:w-auto'}`}>
+      <div className={`flex-1 min-h-0 h-full flex flex-col transition-all duration-300 ${!selectedConversation ? 'hidden md:flex' : 'w-full md:w-auto'}`}>
         {selectedConversation ? (
           <ChatContainer />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-neutral-950/40 p-8 space-y-4 select-none">
-            <svg className="w-16 h-16 rounded-3xl shadow-xl shadow-indigo-500/10" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="charchaHomeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#a855f7" />
-                </linearGradient>
-              </defs>
-              <rect width="32" height="32" rx="9" fill="url(#charchaHomeGrad)" />
-              <path d="M9 9h14c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2h-9l-4 4v-4H9c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2zm2 3v1.5h10V12H11zm0 3.5V17h7v-1.5h-7z" fill="#ffffff" />
-            </svg>
-            <div className="text-center max-w-sm space-y-1">
-              <h2 className="text-xl font-bold tracking-wide text-slate-800 dark:text-slate-200">Start Messaging</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Select a contact or group from the sidebar to begin exchanging messages in real-time.
+          <div className="relative flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-neutral-950/20 p-8 space-y-5 select-none overflow-hidden animate-page-entrance">
+            {/* Glowing blur background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-indigo-500/10 dark:bg-indigo-600/5 blur-3xl pointer-events-none" />
+            
+            {/* Illustration */}
+            <div className="relative z-10 animate-float flex flex-col items-center">
+              <svg className="w-20 h-20 rounded-3xl shadow-[0_10px_30px_rgba(99,102,241,0.2)]" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="charchaHomeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#a855f7" />
+                  </linearGradient>
+                </defs>
+                <rect width="32" height="32" rx="9" fill="url(#charchaHomeGrad)" />
+                <path d="M9 9h14c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2h-9l-4 4v-4H9c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2zm2 3v1.5h10V12H11zm0 3.5V17h7v-1.5h-7z" fill="#ffffff" />
+              </svg>
+            </div>
+
+            <div className="text-center max-w-sm space-y-2 relative z-10">
+              <h2 className="text-2xl font-black tracking-wide text-slate-800 dark:text-slate-100">Welcome to Charcha</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                Select a conversation from the sidebar to start chatting.
               </p>
             </div>
           </div>
@@ -41,3 +53,4 @@ export default function HomePage() {
     </div>
   );
 }
+
