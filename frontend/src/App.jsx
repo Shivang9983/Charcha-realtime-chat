@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import ToastContainer from './components/Toast';
+import NotificationContainer from './components/NotificationContainer';
 
 export default function App() {
   const { authUser, checkAuth, isCheckingAuth, socket } = useAuthStore();
@@ -14,6 +15,12 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [loadingText, setLoadingText] = useState('Syncing chat environment...');
   const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -131,6 +138,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <ToastContainer />
+      <NotificationContainer />
     </div>
   );
 }

@@ -1,6 +1,51 @@
 import { create } from 'zustand';
 import { axiosInstance } from '../lib/axios';
 import { useAuthStore } from './useAuthStore';
+import { useNotificationStore } from './useNotificationStore';
+
+
+const processedMessages = new Set();
+
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    // First D5 warm tone
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+
+    osc1.start();
+    osc1.stop(ctx.currentTime + 0.12);
+
+    // Second ascending A5 tone shortly after
+    setTimeout(() => {
+      if (ctx.state === 'closed') return;
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, ctx.currentTime);
+      gain2.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+
+      osc2.start();
+      osc2.stop(ctx.currentTime + 0.22);
+    }, 65);
+  } catch (err) {
+    console.error('Audio playback error:', err);
+  }
+};
 
 export const useChatStore = create((set, get) => ({
   conversations: [],
@@ -90,6 +135,9 @@ export const useChatStore = create((set, get) => ({
           set({ messages: [...messages, message] });
         }
       }
+      if (message && message._id) {
+        processedMessages.add(message._id);
+      }
     });
 
     socket.on('messagesRead', ({ conversationId, readBy }) => {
@@ -156,6 +204,57 @@ export const useChatStore = create((set, get) => ({
 
         return { conversations: updatedConversations };
       });
+
+      if (!latestMessage) return;
+
+      const authUser = useAuthStore.getState().authUser;
+      const senderId = typeof latestMessage.sender === 'object' ? latestMessage.sender._id : latestMessage.sender;
+
+      // Play sound and trigger notifications only for other users' new messages
+      if (authUser && senderId && senderId !== authUser._id) {
+        if (processedMessages.has(latestMessage._id)) return;
+        processedMessages.add(latestMessage._id);
+
+        const { selectedConversation, conversations } = get();
+        const isCurrentChatOpen = selectedConversation?._id === conversationId;
+        const senderName = typeof latestMessage.sender === 'object' ? latestMessage.sender.username : 'Someone';
+        const senderAvatar = typeof latestMessage.sender === 'object' ? latestMessage.sender.avatar : '';
+        const messagePreview = latestMessage.content;
+        const targetConv = conversations.find((c) => c._id === conversationId) || { _id: conversationId, participants: [], isGroup: false };
+
+        // 1. Play chime sound
+        playNotificationSound();
+
+        // 2. Manage notification displays
+        if (!isCurrentChatOpen) {
+          // Display in-app notification banner
+          useNotificationStore.getState().showInAppNotification(senderName, senderAvatar, messagePreview, targetConv);
+
+          // Display desktop notification if tab is hidden/minimized
+          if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(senderName, {
+              body: messagePreview,
+              icon: senderAvatar || undefined,
+            });
+            notification.onclick = () => {
+              window.focus();
+              get().setSelectedConversation(targetConv);
+            };
+          }
+        } else {
+          // Active chat open but tab hidden/minimized
+          if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(senderName, {
+              body: messagePreview,
+              icon: senderAvatar || undefined,
+            });
+            notification.onclick = () => {
+              window.focus();
+              get().setSelectedConversation(selectedConversation);
+            };
+          }
+        }
+      }
     });
   },
 
