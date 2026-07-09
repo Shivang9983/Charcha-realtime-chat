@@ -11,8 +11,8 @@
 
 /* Custom scrollbar layout styling */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -20,41 +20,144 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.3);
+  background: rgba(99, 102, 241, 0.15);
   border-radius: 9999px;
+  transition: all 0.25s ease;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.5);
+  background: rgba(99, 102, 241, 0.45);
 }
 
 /* Custom premium glassmorphic cards */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .dark .glass-effect {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(9, 9, 11, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-/* Pulse animation utility for online status */
-@keyframes pulse-ring {
+/* Custom animations & keyframes for premium UI/UX */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes message-appear {
   0% {
-    transform: scale(0.6);
-    opacity: 1;
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
   }
   100% {
-    transform: scale(1.4);
-    opacity: 0;
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-.animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.25, 0, 0, 1) infinite;
+.animate-message-appear {
+  animation: message-appear 0.24s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.1) 25%,
+    rgba(226, 232, 240, 0.2) 37%,
+    rgba(226, 232, 240, 0.1) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.3) 25%,
+    rgba(51, 65, 85, 0.5) 37%,
+    rgba(30, 41, 59, 0.3) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-entrance {
+  animation: page-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Highlight matches styling */
+.search-highlight {
+  background-color: rgba(99, 102, 241, 0.25);
+  border-radius: 2px;
+  color: #818cf8;
+  font-weight: 600;
+  padding: 0 1px;
+}
+
+/* Active chats transition and premium hover scales */
+.transition-all-200 {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Avatar animated ring */
+.avatar-ring-premium {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s ease;
+}
+.avatar-ring-premium:hover {
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.5), 0 0 15px rgba(99, 102, 241, 0.4);
 }
