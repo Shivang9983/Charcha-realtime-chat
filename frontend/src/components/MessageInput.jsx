@@ -69,22 +69,22 @@ export default function MessageInput() {
   };
 
   return (
-    <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-slate-800 bg-slate-900/40 p-4">
+    <form onSubmit={handleSend} className="flex items-center gap-2.5 border-t border-slate-200/85 dark:border-neutral-900 bg-white/90 dark:bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div className="relative flex-1">
         <input
           type="text"
           placeholder="Type a message..."
           value={content}
           onChange={handleInputChange}
-          className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 pr-12 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
+          className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 px-4 py-3 pr-12 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 shadow-xs"
         />
       </div>
       <button
         type="submit"
         disabled={!content.trim()}
-        className="flex-shrink-0 cursor-pointer rounded-xl bg-indigo-600 p-3 text-white transition-all hover:scale-105 hover:bg-indigo-500 active:scale-95 disabled:opacity-50"
+        className="flex-shrink-0 cursor-pointer rounded-xl bg-indigo-600 p-3 text-white transition-all duration-200 hover:scale-105 hover:bg-indigo-500 hover:shadow-md active:scale-95 disabled:opacity-40 shadow-sm shrink-0"
       >
-        <Send className="h-5 w-5" />
+        <Send className="h-4.5 w-4.5" />
       </button>
     </form>
   );

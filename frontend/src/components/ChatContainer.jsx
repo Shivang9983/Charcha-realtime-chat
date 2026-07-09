@@ -3,14 +3,15 @@ import { useChatStore } from '../stores/useChatStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import ChatHeader from './ChatHeader';
 import MessageInput from './MessageInput';
-import { Check, CheckCheck, Loader2, Copy, Smile } from 'lucide-react';
+import { ChatMessagesSkeleton } from './Skeleton';
+import { Check, CheckCheck, Copy, Smile } from 'lucide-react';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export default function ChatContainer() {
   const { messages, selectedConversation, isMessagesLoading, typingStatus } = useChatStore();
   const { authUser } = useAuthStore();
-  
+
   const scrollContainerRef = useRef(null);
   const [activeReactionId, setActiveReactionId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
@@ -20,7 +21,7 @@ export default function ChatContainer() {
     try {
       const saved = localStorage.getItem('chat_bubble_reactions');
       return saved ? JSON.parse(saved) : {};
-    } catch (e) {
+    } catch {
       return {};
     }
   });
@@ -119,8 +120,8 @@ export default function ChatContainer() {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            className={`underline break-all transition-colors duration-150 font-medium ${
-              isMe ? 'text-indigo-200 hover:text-white' : 'text-indigo-400 hover:text-indigo-300'
+            className={`underline break-all transition-colors duration-150 font-semibold ${
+              isMe ? 'text-indigo-150 hover:text-white' : 'text-indigo-500 hover:text-indigo-400'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -187,19 +188,14 @@ export default function ChatContainer() {
     return (
       <div className="flex-1 min-h-0 flex flex-col bg-slate-50 dark:bg-black/95">
         <ChatHeader />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-            <p className="text-sm text-slate-400 font-medium">Loading messages...</p>
-          </div>
-        </div>
+        <ChatMessagesSkeleton />
         <MessageInput />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-slate-50 dark:bg-black">
+    <div className="flex-1 min-h-0 flex flex-col bg-slate-50 dark:bg-black select-none">
       <ChatHeader />
 
       {/* Message List */}
@@ -208,12 +204,12 @@ export default function ChatContainer() {
           processedItems.map((item) => {
             if (item.type === 'divider') {
               return (
-                <div key={item.id} className="flex items-center justify-center my-6 select-none">
-                  <div className="h-[1px] flex-1 bg-slate-200 dark:bg-neutral-800/80" />
-                  <span className="px-3 py-1 rounded-full text-[10px] font-semibold text-slate-400 dark:text-neutral-500 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-xs mx-4">
+                <div key={item.id} className="flex items-center justify-center my-6 select-none animate-in fade-in duration-300">
+                  <div className="h-[1px] flex-1 bg-slate-200 dark:bg-neutral-900/60" />
+                  <span className="px-3.5 py-1 rounded-full text-[10px] font-bold text-slate-400 dark:text-neutral-500 bg-white dark:bg-neutral-950 border border-slate-200 dark:border-neutral-900 shadow-xs mx-4">
                     {formatDividerDate(item.date)}
                   </span>
-                  <div className="h-[1px] flex-1 bg-slate-200 dark:bg-neutral-800/80" />
+                  <div className="h-[1px] flex-1 bg-slate-200 dark:bg-neutral-900/60" />
                 </div>
               );
             }
@@ -227,15 +223,9 @@ export default function ChatContainer() {
             // WhatsApp-like bubble corner tail style configuration
             let roundedClasses = '';
             if (isMe) {
-              if (isFirst && isLast) roundedClasses = 'rounded-2xl rounded-tr-xs';
-              else if (isFirst) roundedClasses = 'rounded-2xl rounded-tr-xs';
-              else if (isLast) roundedClasses = 'rounded-2xl rounded-tr-xs';
-              else roundedClasses = 'rounded-2xl rounded-tr-xs';
+              roundedClasses = 'rounded-2xl rounded-tr-xs';
             } else {
-              if (isFirst && isLast) roundedClasses = 'rounded-2xl rounded-tl-xs';
-              else if (isFirst) roundedClasses = 'rounded-2xl rounded-tl-xs';
-              else if (isLast) roundedClasses = 'rounded-2xl rounded-tl-xs';
-              else roundedClasses = 'rounded-2xl rounded-tl-xs';
+              roundedClasses = 'rounded-2xl rounded-tl-xs';
             }
 
             const username = getSenderUsername(msg.sender);
@@ -245,18 +235,18 @@ export default function ChatContainer() {
               <div
                 key={msg._id}
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${
-                  isFirst ? 'mt-3' : 'mt-0.5'
-                } group relative`}
+                  isFirst ? 'mt-3.5' : 'mt-0.5'
+                } group relative animate-message-appear`}
               >
                 {/* Username Header for Group Chats */}
                 {isFirst && !isMe && selectedConversation.isGroup && (
-                  <span className="text-[10px] font-semibold text-indigo-500 dark:text-indigo-400 mb-1 ml-11">
+                  <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-1 ml-11">
                     {username}
                   </span>
                 )}
 
                 {/* Message Bubble Container Row */}
-                <div className={`flex gap-3 items-end max-w-[75%] ${isMe ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex gap-3 items-end max-w-[80%] md:max-w-[70%] ${isMe ? 'justify-end' : 'justify-start'}`}>
                   {/* Recipient Avatar */}
                   {!isMe && (
                     <div className="w-8 h-8 flex-shrink-0">
@@ -264,7 +254,7 @@ export default function ChatContainer() {
                         <img
                           src={avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${username}`}
                           alt={username}
-                          className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-neutral-800"
+                          className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-neutral-850 shadow-xs"
                         />
                       )}
                     </div>
@@ -274,27 +264,27 @@ export default function ChatContainer() {
                   <div className="relative">
                     {/* Hover Action Bar */}
                     <div
-                      className={`absolute -top-4 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-sm rounded-lg p-0.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+                      className={`absolute -top-4.5 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 shadow-md rounded-xl p-1 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5 ${
                         activeReactionId === msg._id ? 'opacity-100' : ''
-                      } ${isMe ? 'left-3' : 'right-3'}`}
+                      } ${isMe ? 'left-3.5' : 'right-3.5'}`}
                     >
                       <button
                         onClick={() => setActiveReactionId(activeReactionId === msg._id ? null : msg._id)}
-                        className="p-1 rounded text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                        className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
                         title="React"
                       >
-                        <Smile className="h-3.5 w-3.5" />
+                        <Smile className="h-4 w-4" />
                       </button>
 
                       <button
                         onClick={() => handleCopy(msg.content, msg._id)}
-                        className="p-1 rounded text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                        className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
                         title="Copy message"
                       >
                         {copiedId === msg._id ? (
                           <span className="text-[9px] text-emerald-500 font-bold px-1 select-none">Copied</span>
                         ) : (
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-4 w-4" />
                         )}
                       </button>
                     </div>
@@ -310,8 +300,8 @@ export default function ChatContainer() {
                           }}
                         />
                         <div
-                          className={`absolute bottom-full mb-1.5 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-lg rounded-xl p-1 z-20 animate-in zoom-in-95 duration-100 ${
-                            isMe ? 'left-3' : 'right-3'
+                          className={`absolute bottom-full mb-2 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-805 shadow-xl rounded-2xl p-1.5 z-20 animate-in zoom-in-90 slide-in-from-bottom-2 duration-150 ${
+                            isMe ? 'left-3.5' : 'right-3.5'
                           }`}
                         >
                           {EMOJIS.map((emoji) => {
@@ -325,8 +315,8 @@ export default function ChatContainer() {
                                   toggleReaction(msg._id, emoji);
                                   setActiveReactionId(null);
                                 }}
-                                className={`p-1 text-base rounded-lg hover:scale-125 transition-transform cursor-pointer ${
-                                  hasReacted ? 'bg-indigo-500/10' : 'hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                className={`p-1 text-base rounded-xl hover:scale-130 hover:bg-indigo-500/10 active:scale-95 transition-all cursor-pointer ${
+                                  hasReacted ? 'bg-indigo-500/15' : 'hover:bg-slate-100 dark:hover:bg-neutral-800'
                                 }`}
                               >
                                 {emoji}
@@ -339,27 +329,27 @@ export default function ChatContainer() {
 
                     {/* Text Bubble Content */}
                     <div
-                      className={`px-3.5 py-2 transition-all duration-200 ${roundedClasses} ${
+                      className={`px-4 py-2.5 shadow-xs border ${roundedClasses} transition-shadow duration-200 hover:shadow-md ${
                         isMe
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border border-slate-200 dark:border-neutral-800'
+                          ? 'bg-indigo-600 border-indigo-650 text-white'
+                          : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
                       }`}
                     >
-                      <div className="break-words leading-relaxed text-sm whitespace-pre-wrap select-text">
+                      <div className="break-words leading-relaxed text-sm whitespace-pre-wrap select-text font-normal">
                         {renderMessageContent(msg.content, isMe)}
                       </div>
 
                       {/* Timestamp & Status Icon */}
                       <div className="flex items-center justify-end gap-1.5 mt-1 select-none">
-                        <span className={`text-[9px] ${isMe ? 'text-indigo-200/90' : 'text-slate-400'}`}>
+                        <span className={`text-[9px] font-medium tracking-wide ${isMe ? 'text-indigo-200/90' : 'text-slate-400'}`}>
                           {formatTime(msg.createdAt)}
                         </span>
                         {isMe && (
                           <span className="flex-shrink-0">
                             {read ? (
-                              <CheckCheck className="h-3 w-3 text-sky-300" />
+                              <CheckCheck className="h-3 w-3 text-sky-300 animate-pulse" />
                             ) : (
-                              <Check className="h-3 w-3 text-indigo-200" />
+                              <Check className="h-3 w-3 text-indigo-250" />
                             )}
                           </span>
                         )}
@@ -370,12 +360,12 @@ export default function ChatContainer() {
 
                 {/* Reaction Badges */}
                 {reactions[msg._id] && reactions[msg._id].length > 0 && (
-                  <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'} ${!isMe ? 'pl-11' : ''}`}>
+                  <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'} ${!isMe ? 'pl-11' : ''} animate-in zoom-in-95 duration-200`}>
                     {reactions[msg._id].map((emoji) => (
                       <button
                         key={emoji}
                         onClick={() => toggleReaction(msg._id, emoji)}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 transition-all cursor-pointer hover:border-slate-300 dark:hover:border-neutral-700"
+                        className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 transition-all duration-200 cursor-pointer hover:border-slate-350 dark:hover:border-neutral-700 hover:scale-110 active:scale-95 shadow-xs"
                       >
                         <span>{emoji}</span>
                       </button>
@@ -386,27 +376,31 @@ export default function ChatContainer() {
             );
           })
         ) : (
-          <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-neutral-500 text-xs font-semibold gap-2 animate-in fade-in duration-500">
+            <svg className="w-8 h-8 opacity-40 animate-float" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-4.03 9-9s-4.03-9-9-9-9 4.03-9 9 4.03 9 9 9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 11.25h.008v.008H8.25v-.008zm3.75 0h.008v.008H12v-.008zm3.75 0h.008v.008h-.008v-.008zm-7.5 4.5a3.75 3.75 0 007.5 0" />
+            </svg>
             No messages here yet. Say hello!
           </div>
         )}
 
         {/* Typing Indicator */}
         {otherTypingUsers.length > 0 && (
-          <div className="flex gap-3 justify-start items-end mt-3">
+          <div className="flex gap-3 justify-start items-end mt-4 animate-in slide-in-from-bottom-3 duration-200">
             <img
               src={getTypingUserAvatar(otherTypingUsers[0])}
               alt={otherTypingUsers[0]}
-              className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-neutral-800 flex-shrink-0"
+              className="h-8 w-8 rounded-lg object-cover border border-slate-250 dark:border-neutral-850 flex-shrink-0 shadow-xs"
             />
             <div className="flex flex-col text-left">
-              <span className="text-[10px] font-semibold text-slate-400 mb-1 ml-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-neutral-500 mb-1 ml-1 tracking-wide">
                 {otherTypingUsers.join(', ')} is typing
               </span>
-              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-xs border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-xs border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-2.5 text-slate-450 dark:text-slate-350 shadow-xs">
+                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           </div>
@@ -417,3 +411,4 @@ export default function ChatContainer() {
     </div>
   );
 }
+
