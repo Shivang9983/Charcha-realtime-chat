@@ -4,12 +4,13 @@ import { useAuthStore } from '../stores/useAuthStore';
 import ChatHeader from './ChatHeader';
 import MessageInput from './MessageInput';
 import { ChatMessagesSkeleton } from './Skeleton';
-import { Check, CheckCheck, Copy, Smile } from 'lucide-react';
+import { Check, CheckCheck, Copy, Smile, Ban, Edit3, Trash2, Reply } from 'lucide-react';
+import { useToastStore } from '../stores/useToastStore';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export default function ChatContainer() {
-  const { messages, selectedConversation, isMessagesLoading, typingStatus } = useChatStore();
+  const { messages, selectedConversation, isMessagesLoading, typingStatus, editMessage, deleteMessage } = useChatStore();
   const { authUser } = useAuthStore();
 
   const scrollContainerRef = useRef(null);
@@ -25,6 +26,113 @@ export default function ChatContainer() {
       return {};
     }
   });
+
+  // Edit & Delete states
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+  const [deleteConfirmMessage, setDeleteConfirmMessage] = useState(null);
+
+  // Touch handlers refs for Mobile long press
+  const touchTimer = useRef(null);
+  const isLongPress = useRef(false);
+
+  const handleTouchStart = (e, msg) => {
+    isLongPress.current = false;
+    if (!e.touches || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+
+    touchTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      triggerContextMenu(e, msg, clientX, clientY);
+    }, 600); // 600ms hold time
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+    }
+    if (isLongPress.current) {
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+    }
+  };
+
+  const triggerContextMenu = (e, msg, clientX, clientY) => {
+    if (msg.isDeleted) return;
+
+    let x = clientX;
+    let y = clientY;
+
+    // Viewport boundaries correction
+    const menuWidth = 176;
+    const menuHeight = 160;
+
+    if (x + menuWidth > window.innerWidth) {
+      x = window.innerWidth - menuWidth - 10;
+    }
+    if (y + menuHeight > window.innerHeight) {
+      y = window.innerHeight - menuHeight - 10;
+    }
+
+    x = Math.max(10, x);
+    y = Math.max(10, y);
+
+    setContextMenu({ x, y, message: msg });
+  };
+
+  const handleContextMenu = (e, msg) => {
+    if (msg.isDeleted) return;
+    e.preventDefault();
+    triggerContextMenu(e, msg, e.clientX, e.clientY);
+  };
+
+  const handleSaveEdit = async (messageId) => {
+    const trimmed = editContent.trim();
+    if (!trimmed) {
+      useToastStore.getState().addToast('Message content cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      await editMessage(messageId, trimmed);
+      setEditingMessageId(null);
+      setEditContent('');
+    } catch (error) {
+      // Error handled by store toast
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleEditKeyDown = (e, messageId) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit(messageId);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  const handleDeleteMessage = async (messageId, deleteType) => {
+    try {
+      await deleteMessage(messageId, deleteType);
+      setDeleteConfirmMessage(null);
+    } catch (error) {
+      // Error handled by store toast
+    }
+  };
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -261,36 +369,44 @@ export default function ChatContainer() {
                   )}
 
                   {/* Bubble Column */}
-                  <div className="relative">
+                  <div
+                    className="relative"
+                    onContextMenu={(e) => handleContextMenu(e, msg)}
+                    onTouchStart={(e) => handleTouchStart(e, msg)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchMove}
+                  >
                     {/* Hover Action Bar */}
-                    <div
-                      className={`absolute -top-4.5 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 shadow-md rounded-xl p-1 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5 ${
-                        activeReactionId === msg._id ? 'opacity-100' : ''
-                      } ${isMe ? 'left-3.5' : 'right-3.5'}`}
-                    >
-                      <button
-                        onClick={() => setActiveReactionId(activeReactionId === msg._id ? null : msg._id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
-                        title="React"
+                    {!msg.isDeleted && (
+                      <div
+                        className={`absolute -top-4.5 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 shadow-md rounded-xl p-1 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5 ${
+                          activeReactionId === msg._id ? 'opacity-100' : ''
+                        } ${isMe ? 'left-3.5' : 'right-3.5'}`}
                       >
-                        <Smile className="h-4 w-4" />
-                      </button>
+                        <button
+                          onClick={() => setActiveReactionId(activeReactionId === msg._id ? null : msg._id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                          title="React"
+                        >
+                          <Smile className="h-4 w-4" />
+                        </button>
 
-                      <button
-                        onClick={() => handleCopy(msg.content, msg._id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
-                        title="Copy message"
-                      >
-                        {copiedId === msg._id ? (
-                          <span className="text-[9px] text-emerald-500 font-bold px-1 select-none">Copied</span>
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => handleCopy(msg.content, msg._id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                          title="Copy message"
+                        >
+                          {copiedId === msg._id ? (
+                            <span className="text-[9px] text-emerald-500 font-bold px-1 select-none">Copied</span>
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Reaction Selector Popover */}
-                    {activeReactionId === msg._id && (
+                    {!msg.isDeleted && activeReactionId === msg._id && (
                       <>
                         <div
                           className="fixed inset-0 z-10 cursor-default"
@@ -328,38 +444,107 @@ export default function ChatContainer() {
                     )}
 
                     {/* Text Bubble Content */}
-                    <div
-                      className={`px-4 py-2.5 shadow-xs border ${roundedClasses} transition-shadow duration-200 hover:shadow-md ${
-                        isMe
-                          ? 'bg-indigo-600 border-indigo-650 text-white'
-                          : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
-                      }`}
-                    >
-                      <div className="break-words leading-relaxed text-sm whitespace-pre-wrap select-text font-normal">
-                        {renderMessageContent(msg.content, isMe)}
-                      </div>
-
-                      {/* Timestamp & Status Icon */}
-                      <div className="flex items-center justify-end gap-1.5 mt-1 select-none">
-                        <span className={`text-[9px] font-medium tracking-wide ${isMe ? 'text-indigo-200/90' : 'text-slate-400'}`}>
-                          {formatTime(msg.createdAt)}
-                        </span>
-                        {isMe && (
-                          <span className="flex-shrink-0">
-                            {read ? (
-                              <CheckCheck className="h-3 w-3 text-sky-300 animate-pulse" />
-                            ) : (
-                              <Check className="h-3 w-3 text-indigo-250" />
-                            )}
+                    {msg.isDeleted ? (
+                      <div
+                        className={`px-4 py-2.5 shadow-xs border ${roundedClasses} ${
+                          isMe
+                            ? 'bg-indigo-650/15 border-indigo-650/20 text-white/50'
+                            : 'bg-white/50 dark:bg-neutral-950 text-slate-400 dark:text-neutral-500 border-slate-200 dark:border-neutral-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 italic text-sm font-normal">
+                          <Ban className="h-4 w-4 opacity-60 flex-shrink-0" />
+                          <span>{isMe ? 'You deleted this message' : 'This message was deleted'}</span>
+                        </div>
+                        {/* Preserve original timestamp */}
+                        <div className="flex items-center justify-end gap-1.5 mt-1 select-none">
+                          <span className="text-[9px] font-medium tracking-wide opacity-60">
+                            {formatTime(msg.createdAt)}
                           </span>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                    ) : msg._id === editingMessageId ? (
+                      <div
+                        className={`px-4 py-2.5 shadow-xs border ${roundedClasses} min-w-[200px] md:min-w-[280px] ${
+                          isMe
+                            ? 'bg-indigo-600 border-indigo-650 text-white'
+                            : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
+                        }`}
+                      >
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          onKeyDown={(e) => handleEditKeyDown(e, msg._id)}
+                          className={`w-full text-sm font-normal rounded-lg p-2 focus:outline-hidden focus:ring-1 focus:ring-indigo-400 resize-none ${
+                            isMe
+                              ? 'bg-indigo-700 text-white border-indigo-500/30 placeholder-white/50 focus:ring-white'
+                              : 'bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-750 focus:ring-indigo-500'
+                          }`}
+                          rows={1}
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-1.5 mt-2 text-[10px] select-none">
+                          <button
+                            onClick={cancelEdit}
+                            className={`px-2 py-0.5 rounded transition-all font-semibold cursor-pointer ${
+                              isMe
+                                ? 'bg-indigo-700/60 hover:bg-indigo-700 text-indigo-150'
+                                : 'bg-slate-200 dark:bg-neutral-800 hover:bg-slate-250 dark:hover:bg-neutral-750 text-slate-600 dark:text-neutral-300'
+                            }`}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(msg._id)}
+                            className={`px-2 py-0.5 rounded transition-all font-semibold cursor-pointer ${
+                              isMe
+                                ? 'bg-white text-indigo-600 hover:bg-slate-50'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            }`}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`px-4 py-2.5 shadow-xs border ${roundedClasses} transition-shadow duration-200 hover:shadow-md ${
+                          isMe
+                            ? 'bg-indigo-600 border-indigo-650 text-white'
+                            : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
+                        }`}
+                      >
+                        <div className="break-words leading-relaxed text-sm whitespace-pre-wrap select-text font-normal">
+                          {renderMessageContent(msg.content, isMe)}
+                        </div>
+
+                        {/* Timestamp & Status Icon */}
+                        <div className="flex items-center justify-end gap-1.5 mt-1 select-none">
+                          {msg.isEdited && (
+                            <span className={`text-[9px] font-bold opacity-75 ${isMe ? 'text-indigo-200/90' : 'text-slate-450 dark:text-slate-400'}`}>
+                              Edited •
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-medium tracking-wide ${isMe ? 'text-indigo-200/90' : 'text-slate-400'}`}>
+                            {formatTime(msg.createdAt)}
+                          </span>
+                          {isMe && (
+                            <span className="flex-shrink-0">
+                              {read ? (
+                                <CheckCheck className="h-3 w-3 text-sky-300 animate-pulse" />
+                              ) : (
+                                <Check className="h-3 w-3 text-indigo-250" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Reaction Badges */}
-                {reactions[msg._id] && reactions[msg._id].length > 0 && (
+                {reactions[msg._id] && reactions[msg._id].length > 0 && !msg.isDeleted && (
                   <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'} ${!isMe ? 'pl-11' : ''} animate-in zoom-in-95 duration-200`}>
                     {reactions[msg._id].map((emoji) => (
                       <button
@@ -408,6 +593,109 @@ export default function ChatContainer() {
       </div>
 
       <MessageInput />
+
+      {/* Context Menu Popup */}
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-transparent"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-xl rounded-xl py-1.5 w-44 animate-in zoom-in-95 duration-100"
+            style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+          >
+            <button
+              disabled
+              className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-slate-400 dark:text-neutral-600 transition-colors cursor-not-allowed opacity-50 font-medium"
+            >
+              <Reply className="h-4 w-4" />
+              Reply
+            </button>
+
+            {/* Show Edit / Delete only if current user is sender */}
+            {getSenderId(contextMenu.message.sender) === authUser?._id && (
+              <>
+                <button
+                  onClick={() => {
+                    const msg = contextMenu.message;
+                    const isEditable = (Date.now() - new Date(msg.createdAt).getTime() < 15 * 60 * 1000);
+                    if (!isEditable) {
+                      useToastStore.getState().addToast('Messages can only be edited within 15 minutes of sending', 'error');
+                      setContextMenu(null);
+                      return;
+                    }
+                    setEditingMessageId(msg._id);
+                    setEditContent(msg.content);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer font-medium"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setDeleteConfirmMessage(contextMenu.message);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-rose-600 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer font-medium"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                handleCopy(contextMenu.message.content, contextMenu.message._id);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer font-medium"
+            >
+              <Copy className="h-4 w-4" />
+              Copy
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-base font-bold text-slate-800 dark:text-neutral-200 mb-2">Delete message?</h3>
+            <p className="text-xs text-slate-500 dark:text-neutral-400 mb-5 leading-normal">
+              Would you like to delete this message for yourself, or delete it for everyone?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleDeleteMessage(deleteConfirmMessage._id, 'everyone')}
+                className="w-full py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-semibold text-xs transition-all duration-150 cursor-pointer"
+              >
+                Delete for Everyone
+              </button>
+              <button
+                onClick={() => handleDeleteMessage(deleteConfirmMessage._id, 'me')}
+                className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-neutral-850 dark:hover:bg-neutral-800 active:scale-98 text-slate-800 dark:text-neutral-200 font-semibold text-xs transition-all duration-150 cursor-pointer"
+              >
+                Delete for Me
+              </button>
+              <button
+                onClick={() => setDeleteConfirmMessage(null)}
+                className="w-full py-2 px-4 rounded-xl border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-850 active:scale-98 text-slate-500 dark:text-neutral-400 font-semibold text-xs transition-all duration-150 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { axiosInstance } from '../lib/axios';
 import { useAuthStore } from './useAuthStore';
 import { useNotificationStore } from './useNotificationStore';
+import { useToastStore } from './useToastStore';
 
 
 const processedMessages = new Set();
@@ -88,6 +89,47 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  editMessage: async (messageId, content) => {
+    try {
+      const res = await axiosInstance.put(`/messages/edit/${messageId}`, { content });
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          msg._id === messageId ? res.data : msg
+        ),
+      }));
+      useToastStore.getState().addToast('Message edited successfully', 'success');
+    } catch (error) {
+      console.log('Error editing message:', error);
+      const errMsg = error.response?.data?.error || 'Failed to edit message';
+      useToastStore.getState().addToast(errMsg, 'error');
+      throw error;
+    }
+  },
+
+  deleteMessage: async (messageId, deleteType) => {
+    try {
+      const res = await axiosInstance.post(`/messages/delete/${messageId}`, { deleteType });
+      if (deleteType === 'me') {
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg._id !== messageId),
+        }));
+        useToastStore.getState().addToast('Message deleted for me', 'success');
+      } else {
+        set((state) => ({
+          messages: state.messages.map((msg) =>
+            msg._id === messageId ? res.data : msg
+          ),
+        }));
+        useToastStore.getState().addToast('Message deleted for everyone', 'success');
+      }
+    } catch (error) {
+      console.log('Error deleting message:', error);
+      const errMsg = error.response?.data?.error || 'Failed to delete message';
+      useToastStore.getState().addToast(errMsg, 'error');
+      throw error;
+    }
+  },
+
   startConversation: async (data) => {
     try {
       const res = await axiosInstance.post('/messages/conversations', data);
@@ -137,6 +179,26 @@ export const useChatStore = create((set, get) => ({
       }
       if (message && message._id) {
         processedMessages.add(message._id);
+      }
+    });
+
+    socket.on('messageUpdated', (updatedMessage) => {
+      const { selectedConversation, messages } = get();
+      if (selectedConversation && updatedMessage.conversationId === selectedConversation._id) {
+        const authUser = useAuthStore.getState().authUser;
+        const isDeletedForMe = updatedMessage.deletedFor?.some(
+          (id) => (typeof id === 'object' ? id._id : id).toString() === authUser?._id?.toString()
+        );
+
+        if (isDeletedForMe) {
+          set({ messages: messages.filter((msg) => msg._id !== updatedMessage._id) });
+        } else {
+          set({
+            messages: messages.map((msg) =>
+              msg._id === updatedMessage._id ? updatedMessage : msg
+            ),
+          });
+        }
       }
     });
 
@@ -268,5 +330,6 @@ export const useChatStore = create((set, get) => ({
     socket.off('stopTyping');
     socket.off('newConversation');
     socket.off('conversationUpdate');
+    socket.off('messageUpdated');
   },
 }));
