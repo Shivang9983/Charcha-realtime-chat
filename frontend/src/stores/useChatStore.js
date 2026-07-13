@@ -55,12 +55,32 @@ export const useChatStore = create((set, get) => ({
   isConversationsLoading: false,
   isMessagesLoading: false,
   typingStatus: {}, // Structure: { [conversationId]: { [userId]: username } }
+  replyingToMessage: null,
+  unreadCounts: {},
+
+  setReplyingToMessage: (message) => set({ replyingToMessage: message }),
 
   getConversations: async () => {
     set({ isConversationsLoading: true });
     try {
       const res = await axiosInstance.get('/messages/conversations');
-      set({ conversations: res.data });
+      const conversations = res.data;
+
+      // Initialize unread counts based on latestMessage
+      const authUser = useAuthStore.getState().authUser;
+      const initialUnread = {};
+      conversations.forEach((conv) => {
+        const latestMsg = conv.latestMessage;
+        if (latestMsg) {
+          const senderId = typeof latestMsg.sender === 'object' ? latestMsg.sender._id : latestMsg.sender;
+          const isUnread = authUser && senderId !== authUser._id && !latestMsg.readBy.includes(authUser._id);
+          if (isUnread) {
+            initialUnread[conv._id] = 1;
+          }
+        }
+      });
+
+      set({ conversations, unreadCounts: { ...initialUnread, ...get().unreadCounts } });
     } catch (error) {
       console.log('Error getting conversations:', error);
     } finally {
@@ -81,9 +101,14 @@ export const useChatStore = create((set, get) => ({
   },
 
   sendMessage: async (content) => {
-    const { selectedConversation } = get();
+    const { selectedConversation, replyingToMessage } = get();
     try {
-      await axiosInstance.post(`/messages/send/${selectedConversation._id}`, { content });
+      const payload = { content };
+      if (replyingToMessage) {
+        payload.replyTo = replyingToMessage._id;
+      }
+      await axiosInstance.post(`/messages/send/${selectedConversation._id}`, payload);
+      set({ replyingToMessage: null });
     } catch (error) {
       console.log('Error sending message:', error);
     }
@@ -156,9 +181,15 @@ export const useChatStore = create((set, get) => ({
       socket.emit('leaveConversation', previousConversation._id);
     }
 
-    set({ selectedConversation, messages: [] });
+    set({ selectedConversation, messages: [], replyingToMessage: null });
 
     if (selectedConversation) {
+      set((state) => ({
+        unreadCounts: {
+          ...state.unreadCounts,
+          [selectedConversation._id]: 0,
+        },
+      }));
       get().getMessages(selectedConversation._id);
       if (socket) {
         socket.emit('joinConversation', selectedConversation._id);
@@ -272,11 +303,8 @@ export const useChatStore = create((set, get) => ({
       const authUser = useAuthStore.getState().authUser;
       const senderId = typeof latestMessage.sender === 'object' ? latestMessage.sender._id : latestMessage.sender;
 
-      // Play sound and trigger notifications only for other users' new messages
+      // Play sound and trigger notifications only for other users' incoming messages
       if (authUser && senderId && senderId !== authUser._id) {
-        if (processedMessages.has(latestMessage._id)) return;
-        processedMessages.add(latestMessage._id);
-
         const { selectedConversation, conversations } = get();
         const isCurrentChatOpen = selectedConversation?._id === conversationId;
         const senderName = typeof latestMessage.sender === 'object' ? latestMessage.sender.username : 'Someone';
@@ -284,36 +312,58 @@ export const useChatStore = create((set, get) => ({
         const messagePreview = latestMessage.content;
         const targetConv = conversations.find((c) => c._id === conversationId) || { _id: conversationId, participants: [], isGroup: false };
 
-        // 1. Play chime sound
+        // Prevent duplicate sound/notification triggers
+        const notificationKey = `notif_${latestMessage._id}`;
+        if (processedMessages.has(notificationKey)) return;
+        processedMessages.add(notificationKey);
+
+        // 1. Play chime sound for all incoming messages
         playNotificationSound();
 
         // 2. Manage notification displays
         if (!isCurrentChatOpen) {
+          // Increment unread count for this conversation
+          const currentUnread = get().unreadCounts[conversationId] || 0;
+          set((state) => ({
+            unreadCounts: {
+              ...state.unreadCounts,
+              [conversationId]: currentUnread + 1,
+            },
+          }));
+
           // Display in-app notification banner
           useNotificationStore.getState().showInAppNotification(senderName, senderAvatar, messagePreview, targetConv);
 
-          // Display desktop notification if tab is hidden/minimized
-          if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
-            const notification = new Notification(senderName, {
-              body: messagePreview,
-              icon: senderAvatar || undefined,
-            });
-            notification.onclick = () => {
-              window.focus();
-              get().setSelectedConversation(targetConv);
-            };
+          // Display desktop browser notification if tab is inactive
+          if (document.visibilityState !== 'visible' && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              const notification = new Notification(senderName, {
+                body: messagePreview,
+                icon: senderAvatar || undefined,
+              });
+              notification.onclick = () => {
+                window.focus();
+                get().setSelectedConversation(targetConv);
+              };
+            } else if (Notification.permission === 'default') {
+              Notification.requestPermission();
+            }
           }
         } else {
-          // Active chat open but tab hidden/minimized
-          if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
-            const notification = new Notification(senderName, {
-              body: messagePreview,
-              icon: senderAvatar || undefined,
-            });
-            notification.onclick = () => {
-              window.focus();
-              get().setSelectedConversation(selectedConversation);
-            };
+          // Active chat open but tab is inactive (visibilityState !== 'visible')
+          if (document.visibilityState !== 'visible' && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              const notification = new Notification(senderName, {
+                body: messagePreview,
+                icon: senderAvatar || undefined,
+              });
+              notification.onclick = () => {
+                window.focus();
+                get().setSelectedConversation(selectedConversation);
+              };
+            } else if (Notification.permission === 'default') {
+              Notification.requestPermission();
+            }
           }
         }
       }
