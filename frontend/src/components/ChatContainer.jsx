@@ -10,7 +10,7 @@ import { useToastStore } from '../stores/useToastStore';
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export default function ChatContainer() {
-  const { messages, selectedConversation, isMessagesLoading, typingStatus, editMessage, deleteMessage } = useChatStore();
+  const { messages, selectedConversation, isMessagesLoading, typingStatus, editMessage, deleteMessage, setReplyingToMessage } = useChatStore();
   const { authUser } = useAuthStore();
 
   const scrollContainerRef = useRef(null);
@@ -92,6 +92,19 @@ export default function ChatContainer() {
     if (msg.isDeleted) return;
     e.preventDefault();
     triggerContextMenu(e, msg, e.clientX, e.clientY);
+  };
+
+  const scrollToMessage = (msgId) => {
+    const element = document.getElementById(`msg-${msgId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('highlight-message');
+      setTimeout(() => {
+        element.classList.remove('highlight-message');
+      }, 1500);
+    } else {
+      useToastStore.getState().addToast('Original message not found', 'error');
+    }
   };
 
   const handleSaveEdit = async (messageId) => {
@@ -342,9 +355,10 @@ export default function ChatContainer() {
             return (
               <div
                 key={msg._id}
+                id={`msg-${msg._id}`}
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${
                   isFirst ? 'mt-3.5' : 'mt-0.5'
-                } group relative animate-message-appear`}
+                } group relative animate-message-appear rounded-xl transition-colors duration-300`}
               >
                 {/* Username Header for Group Chats */}
                 {isFirst && !isMe && selectedConversation.isGroup && (
@@ -514,6 +528,32 @@ export default function ChatContainer() {
                             : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
                         }`}
                       >
+                        {msg.replyTo && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              scrollToMessage(msg.replyTo._id || msg.replyTo);
+                            }}
+                            className={`mb-2 rounded-lg p-2 text-[11px] flex flex-col border-l-3 cursor-pointer transition-all duration-200 ${
+                              isMe
+                                ? 'bg-indigo-700/50 border-indigo-300 hover:bg-indigo-750/70 text-indigo-100'
+                                : 'bg-slate-100 dark:bg-neutral-955 border-indigo-500 hover:bg-slate-200/85 dark:hover:bg-neutral-900 text-slate-600 dark:text-neutral-350'
+                            }`}
+                          >
+                            <span className={`font-bold text-left ${isMe ? 'text-indigo-200' : 'text-indigo-650 dark:text-indigo-400'}`}>
+                              {msg.replyTo.sender?.username || 'User'}
+                            </span>
+                            <span className="truncate text-left max-w-[200px] sm:max-w-[400px]">
+                              {msg.replyTo.isDeleted ? (
+                                <span className="italic flex items-center gap-1.5 opacity-60">
+                                  <Ban className="h-3.5 w-3.5" /> Deleted message
+                                </span>
+                              ) : (
+                                msg.replyTo.content
+                              )}
+                            </span>
+                          </div>
+                        )}
                         <div className="break-words leading-relaxed text-sm whitespace-pre-wrap select-text font-normal">
                           {renderMessageContent(msg.content, isMe)}
                         </div>
@@ -610,8 +650,11 @@ export default function ChatContainer() {
             style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
           >
             <button
-              disabled
-              className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-slate-400 dark:text-neutral-600 transition-colors cursor-not-allowed opacity-50 font-medium"
+              onClick={() => {
+                setReplyingToMessage(contextMenu.message);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer font-medium"
             >
               <Reply className="h-4 w-4" />
               Reply
