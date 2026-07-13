@@ -2,12 +2,15 @@ import mongoose from 'mongoose';
 
 const conversationSchema = new mongoose.Schema(
   {
-    participants: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+    participants: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
+      index: true,
+    },
     isGroup: {
       type: Boolean,
       default: false,
