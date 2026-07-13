@@ -18,6 +18,7 @@ export default function Sidebar() {
     setSelectedConversation,
     isConversationsLoading,
     startConversation,
+    unreadCounts,
   } = useChatStore();
 
   const { addToast } = useToastStore();
@@ -220,6 +221,8 @@ export default function Sidebar() {
                   getSenderId(latestMsg.sender) !== authUser._id &&
                   !latestMsg.readBy.includes(authUser._id);
 
+                const unreadCount = unreadCounts[conv._id] || 0;
+
                 return (
                   <button
                     key={conv._id}
@@ -241,8 +244,10 @@ export default function Sidebar() {
                         <h4 className={`text-sm truncate ${isSelected ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-850 dark:text-slate-250'}`}>
                           {chatName}
                         </h4>
-                        {isUnread && !isSelected && (
-                          <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                        {unreadCount > 0 && !isSelected && (
+                          <span className="flex items-center justify-center h-5 min-w-[20px] rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white shrink-0 animate-in zoom-in duration-200">
+                            {unreadCount}
+                          </span>
                         )}
                       </div>
                       <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : isUnread ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-400 dark:text-slate-450'}`}>

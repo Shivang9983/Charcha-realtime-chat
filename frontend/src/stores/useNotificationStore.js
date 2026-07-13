@@ -15,7 +15,7 @@ export const useNotificationStore = create((set) => ({
       set((state) => ({
         notifications: state.notifications.filter((n) => n.id !== id),
       }));
-    }, 4500);
+    }, 4000);
   },
 
   dismissNotification: (id) => {
