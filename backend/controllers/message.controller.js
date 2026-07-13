@@ -42,6 +42,13 @@ export const getMessages = async (req, res) => {
 
     const messages = await Message.find({ conversationId, deletedFor: { $ne: userId } })
       .populate('sender', 'username email avatar')
+      .populate({
+        path: 'replyTo',
+        populate: {
+          path: 'sender',
+          select: 'username',
+        },
+      })
       .sort({ createdAt: 1 });
 
     // Update read receipts
@@ -70,7 +77,7 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, replyTo } = req.body;
     const { id: conversationId } = req.params;
     const senderId = req.user._id;
 
@@ -88,6 +95,7 @@ export const sendMessage = async (req, res) => {
       conversationId,
       content,
       readBy: [senderId],
+      replyTo: replyTo || null,
     });
 
     await newMessage.save();
@@ -95,10 +103,15 @@ export const sendMessage = async (req, res) => {
     conversation.latestMessage = newMessage._id;
     await conversation.save();
 
-    const populatedMessage = await Message.findById(newMessage._id).populate(
-      'sender',
-      'username email avatar'
-    );
+    const populatedMessage = await Message.findById(newMessage._id)
+      .populate('sender', 'username email avatar')
+      .populate({
+        path: 'replyTo',
+        populate: {
+          path: 'sender',
+          select: 'username',
+        },
+      });
 
     // Emit event to the socket room
     io.to(conversationId.toString()).emit('newMessage', populatedMessage);
@@ -230,10 +243,15 @@ export const editMessage = async (req, res) => {
     message.isEdited = true;
     await message.save();
 
-    const populatedMessage = await Message.findById(message._id).populate(
-      'sender',
-      'username email avatar'
-    );
+    const populatedMessage = await Message.findById(message._id)
+      .populate('sender', 'username email avatar')
+      .populate({
+        path: 'replyTo',
+        populate: {
+          path: 'sender',
+          select: 'username',
+        },
+      });
 
     // Emit socket event to the conversation room
     io.to(message.conversationId.toString()).emit('messageUpdated', populatedMessage);
@@ -294,10 +312,15 @@ export const deleteMessage = async (req, res) => {
       message.content = 'This message was deleted';
       await message.save();
 
-      const populatedMessage = await Message.findById(message._id).populate(
-        'sender',
-        'username email avatar'
-      );
+      const populatedMessage = await Message.findById(message._id)
+        .populate('sender', 'username email avatar')
+        .populate({
+          path: 'replyTo',
+          populate: {
+            path: 'sender',
+            select: 'username',
+          },
+        });
 
       // Emit socket event to the conversation room
       io.to(message.conversationId.toString()).emit('messageUpdated', populatedMessage);
