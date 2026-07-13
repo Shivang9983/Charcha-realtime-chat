@@ -57,6 +57,7 @@ export const useChatStore = create((set, get) => ({
   typingStatus: {}, // Structure: { [conversationId]: { [userId]: username } }
   replyingToMessage: null,
   unreadCounts: {},
+  cachedMessages: {},
 
   setReplyingToMessage: (message) => set({ replyingToMessage: message }),
 
@@ -89,14 +90,25 @@ export const useChatStore = create((set, get) => ({
   },
 
   getMessages: async (conversationId) => {
-    set({ isMessagesLoading: true });
+    const hasCache = get().cachedMessages && get().cachedMessages[conversationId];
+    if (!hasCache) {
+      set({ isMessagesLoading: true });
+    }
     try {
       const res = await axiosInstance.get(`/messages/${conversationId}`);
-      set({ messages: res.data });
+      set((state) => ({
+        messages: res.data,
+        cachedMessages: {
+          ...state.cachedMessages,
+          [conversationId]: res.data,
+        },
+      }));
     } catch (error) {
       console.log('Error getting messages:', error);
     } finally {
-      set({ isMessagesLoading: false });
+      if (!hasCache) {
+        set({ isMessagesLoading: false });
+      }
     }
   },
 
@@ -117,10 +129,15 @@ export const useChatStore = create((set, get) => ({
   editMessage: async (messageId, content) => {
     try {
       const res = await axiosInstance.put(`/messages/edit/${messageId}`, { content });
+      const updatedMessages = get().messages.map((msg) =>
+        msg._id === messageId ? res.data : msg
+      );
       set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg._id === messageId ? res.data : msg
-        ),
+        messages: updatedMessages,
+        cachedMessages: {
+          ...state.cachedMessages,
+          [res.data.conversationId]: updatedMessages,
+        },
       }));
       useToastStore.getState().addToast('Message edited successfully', 'success');
     } catch (error) {
@@ -135,15 +152,27 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post(`/messages/delete/${messageId}`, { deleteType });
       if (deleteType === 'me') {
+        const updatedMessages = get().messages.filter((msg) => msg._id !== messageId);
+        const msg = get().messages.find((m) => m._id === messageId);
+        const convId = msg?.conversationId;
         set((state) => ({
-          messages: state.messages.filter((msg) => msg._id !== messageId),
+          messages: updatedMessages,
+          cachedMessages: convId ? {
+            ...state.cachedMessages,
+            [convId]: updatedMessages,
+          } : state.cachedMessages,
         }));
         useToastStore.getState().addToast('Message deleted for me', 'success');
       } else {
+        const updatedMessages = get().messages.map((msg) =>
+          msg._id === messageId ? res.data : msg
+        );
         set((state) => ({
-          messages: state.messages.map((msg) =>
-            msg._id === messageId ? res.data : msg
-          ),
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [res.data.conversationId]: updatedMessages,
+          },
         }));
         useToastStore.getState().addToast('Message deleted for everyone', 'success');
       }
@@ -181,7 +210,12 @@ export const useChatStore = create((set, get) => ({
       socket.emit('leaveConversation', previousConversation._id);
     }
 
-    set({ selectedConversation, messages: [], replyingToMessage: null });
+    if (previousConversation?._id === selectedConversation?._id) {
+      return; // Skip redundant updates if clicking the same chat
+    }
+
+    const cached = selectedConversation ? get().cachedMessages[selectedConversation._id] || [] : [];
+    set({ selectedConversation, messages: cached, replyingToMessage: null });
 
     if (selectedConversation) {
       set((state) => ({
@@ -205,7 +239,26 @@ export const useChatStore = create((set, get) => ({
       const { selectedConversation, messages } = get();
       if (selectedConversation && message.conversationId === selectedConversation._id) {
         if (!messages.some((msg) => msg._id === message._id)) {
-          set({ messages: [...messages, message] });
+          const updatedMessages = [...messages, message];
+          set({ messages: updatedMessages });
+          set((state) => ({
+            cachedMessages: {
+              ...state.cachedMessages,
+              [message.conversationId]: updatedMessages,
+            },
+          }));
+        }
+      } else {
+        // Update cache for background conversation
+        const convId = message.conversationId;
+        const cached = get().cachedMessages[convId] || [];
+        if (!cached.some((msg) => msg._id === message._id)) {
+          set((state) => ({
+            cachedMessages: {
+              ...state.cachedMessages,
+              [convId]: [...cached, message],
+            },
+          }));
         }
       }
       if (message && message._id) {
@@ -215,22 +268,41 @@ export const useChatStore = create((set, get) => ({
 
     socket.on('messageUpdated', (updatedMessage) => {
       const { selectedConversation, messages } = get();
-      if (selectedConversation && updatedMessage.conversationId === selectedConversation._id) {
-        const authUser = useAuthStore.getState().authUser;
-        const isDeletedForMe = updatedMessage.deletedFor?.some(
-          (id) => (typeof id === 'object' ? id._id : id).toString() === authUser?._id?.toString()
-        );
+      const authUser = useAuthStore.getState().authUser;
+      const isDeletedForMe = updatedMessage.deletedFor?.some(
+        (id) => (typeof id === 'object' ? id._id : id).toString() === authUser?._id?.toString()
+      );
 
+      // Update selected messages
+      if (selectedConversation && updatedMessage.conversationId === selectedConversation._id) {
+        let updatedMessages;
         if (isDeletedForMe) {
-          set({ messages: messages.filter((msg) => msg._id !== updatedMessage._id) });
+          updatedMessages = messages.filter((msg) => msg._id !== updatedMessage._id);
         } else {
-          set({
-            messages: messages.map((msg) =>
-              msg._id === updatedMessage._id ? updatedMessage : msg
-            ),
-          });
+          updatedMessages = messages.map((msg) =>
+            msg._id === updatedMessage._id ? updatedMessage : msg
+          );
         }
+        set({ messages: updatedMessages });
       }
+
+      // Update cache
+      const convId = updatedMessage.conversationId;
+      const cached = get().cachedMessages[convId] || [];
+      let updatedCached;
+      if (isDeletedForMe) {
+        updatedCached = cached.filter((msg) => msg._id !== updatedMessage._id);
+      } else {
+        updatedCached = cached.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        );
+      }
+      set((state) => ({
+        cachedMessages: {
+          ...state.cachedMessages,
+          [convId]: updatedCached,
+        },
+      }));
     });
 
     socket.on('messagesRead', ({ conversationId, readBy }) => {
@@ -243,7 +315,29 @@ export const useChatStore = create((set, get) => ({
           }
           return msg;
         });
-        set({ messages: updatedMessages });
+        set((state) => ({
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [conversationId]: updatedMessages,
+          },
+        }));
+      } else {
+        // Update cache for background conversation
+        const cached = get().cachedMessages[conversationId] || [];
+        const updatedCached = cached.map((msg) => {
+          const senderId = typeof msg.sender === 'object' ? msg.sender?._id : msg.sender;
+          if (senderId !== readBy && !msg.readBy.includes(readBy)) {
+            return { ...msg, readBy: [...msg.readBy, readBy] };
+          }
+          return msg;
+        });
+        set((state) => ({
+          cachedMessages: {
+            ...state.cachedMessages,
+            [conversationId]: updatedCached,
+          },
+        }));
       }
     });
 

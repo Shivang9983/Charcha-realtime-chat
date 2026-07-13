@@ -9,9 +9,10 @@ export const getConversations = async (req, res) => {
     const conversations = await Conversation.find({
       participants: userId,
     })
-      .populate('participants', 'username email avatar')
+      .populate('participants', 'username avatar')
       .populate({
         path: 'latestMessage',
+        select: 'content sender readBy createdAt',
         populate: {
           path: 'sender',
           select: 'username avatar',
@@ -34,16 +35,17 @@ export const getMessages = async (req, res) => {
     const conversation = await Conversation.findOne({
       _id: conversationId,
       participants: userId,
-    });
+    }).select('_id');
 
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found or access denied' });
     }
 
     const messages = await Message.find({ conversationId, deletedFor: { $ne: userId } })
-      .populate('sender', 'username email avatar')
+      .populate('sender', 'username avatar')
       .populate({
         path: 'replyTo',
+        select: 'content isDeleted sender',
         populate: {
           path: 'sender',
           select: 'username',
@@ -104,9 +106,10 @@ export const sendMessage = async (req, res) => {
     await conversation.save();
 
     const populatedMessage = await Message.findById(newMessage._id)
-      .populate('sender', 'username email avatar')
+      .populate('sender', 'username avatar')
       .populate({
         path: 'replyTo',
+        select: 'content isDeleted sender',
         populate: {
           path: 'sender',
           select: 'username',
@@ -244,9 +247,10 @@ export const editMessage = async (req, res) => {
     await message.save();
 
     const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'username email avatar')
+      .populate('sender', 'username avatar')
       .populate({
         path: 'replyTo',
+        select: 'content isDeleted sender',
         populate: {
           path: 'sender',
           select: 'username',
@@ -313,9 +317,10 @@ export const deleteMessage = async (req, res) => {
       await message.save();
 
       const populatedMessage = await Message.findById(message._id)
-        .populate('sender', 'username email avatar')
+        .populate('sender', 'username avatar')
         .populate({
           path: 'replyTo',
+          select: 'content isDeleted sender',
           populate: {
             path: 'sender',
             select: 'username',
