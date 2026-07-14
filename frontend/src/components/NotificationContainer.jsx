@@ -3,8 +3,9 @@ import { useChatStore } from '../stores/useChatStore';
 import { X } from 'lucide-react';
 
 export default function NotificationContainer() {
-  const { notifications, dismissNotification } = useNotificationStore();
-  const { setSelectedConversation } = useChatStore();
+  const notifications = useNotificationStore((state) => state.notifications);
+  const dismissNotification = useNotificationStore((state) => state.dismissNotification);
+  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
 
   if (notifications.length === 0) return null;
 

@@ -14,8 +14,8 @@ export default function GroupModal({ isOpen, onClose }) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
 
-  const { startConversation } = useChatStore();
-  const { addToast } = useToastStore();
+  const startConversation = useChatStore((state) => state.startConversation);
+  const addToast = useToastStore((state) => state.addToast);
 
   if (!isOpen) return null;
 

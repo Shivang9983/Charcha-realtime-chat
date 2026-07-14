@@ -5,8 +5,12 @@ import { Send, X } from 'lucide-react';
 
 export default function MessageInput() {
   const [content, setContent] = useState('');
-  const { sendMessage, selectedConversation, replyingToMessage, setReplyingToMessage } = useChatStore();
-  const { authUser, socket } = useAuthStore();
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const selectedConversation = useChatStore((state) => state.selectedConversation);
+  const replyingToMessage = useChatStore((state) => state.replyingToMessage);
+  const setReplyingToMessage = useChatStore((state) => state.setReplyingToMessage);
+  const authUser = useAuthStore((state) => state.authUser);
+  const socket = useAuthStore((state) => state.socket);
 
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);

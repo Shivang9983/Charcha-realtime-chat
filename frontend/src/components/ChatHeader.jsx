@@ -3,8 +3,10 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { ArrowLeft, Users } from 'lucide-react';
 
 export default function ChatHeader() {
-  const { selectedConversation, setSelectedConversation } = useChatStore();
-  const { authUser, onlineUsers } = useAuthStore();
+  const selectedConversation = useChatStore((state) => state.selectedConversation);
+  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
+  const authUser = useAuthStore((state) => state.authUser);
+  const onlineUsers = useAuthStore((state) => state.onlineUsers);
 
   if (!selectedConversation) return null;
 
