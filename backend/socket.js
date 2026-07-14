@@ -19,6 +19,10 @@ export const getReceiverSocketId = (receiverId) => {
   return userSocketMap[receiverId];
 };
 
+export const getOnlineUserIds = () => {
+  return Object.keys(userSocketMap);
+};
+
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
