@@ -48,6 +48,31 @@ const playNotificationSound = () => {
   }
 };
 
+const areMessagesEqual = (msgsA, msgsB) => {
+  if (!msgsA || !msgsB) return false;
+  if (msgsA.length !== msgsB.length) return false;
+  for (let i = 0; i < msgsA.length; i++) {
+    const a = msgsA[i];
+    const b = msgsB[i];
+    if (a._id !== b._id) return false;
+    if (a.content !== b.content) return false;
+    if (a.isEdited !== b.isEdited) return false;
+    if (a.isDeleted !== b.isDeleted) return false;
+    if ((a.readBy?.length || 0) !== (b.readBy?.length || 0)) return false;
+    
+    // Check sender
+    const aSender = typeof a.sender === 'object' ? a.sender?._id : a.sender;
+    const bSender = typeof b.sender === 'object' ? b.sender?._id : b.sender;
+    if (aSender !== bSender) return false;
+
+    // Check replyTo
+    const aReply = typeof a.replyTo === 'object' ? a.replyTo?._id : a.replyTo;
+    const bReply = typeof b.replyTo === 'object' ? b.replyTo?._id : b.replyTo;
+    if (aReply !== bReply) return false;
+  }
+  return true;
+};
+
 export const useChatStore = create((set, get) => ({
   conversations: [],
   messages: [],
@@ -96,17 +121,42 @@ export const useChatStore = create((set, get) => ({
     }
     try {
       const res = await axiosInstance.get(`/messages/${conversationId}`);
-      set((state) => ({
-        messages: res.data,
-        cachedMessages: {
-          ...state.cachedMessages,
-          [conversationId]: res.data,
-        },
-      }));
+      
+      // Prevent race conditions: check if the loaded conversation is still selected
+      if (get().selectedConversation?._id !== conversationId) {
+        set((state) => ({
+          cachedMessages: {
+            ...state.cachedMessages,
+            [conversationId]: res.data,
+          },
+        }));
+        return;
+      }
+
+      const currentMessages = get().messages;
+      const isDifferent = !areMessagesEqual(currentMessages, res.data);
+
+      if (isDifferent) {
+        set((state) => ({
+          messages: res.data,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [conversationId]: res.data,
+          },
+        }));
+      } else {
+        // Just cache fresh references without triggering store subscriber notify re-renders
+        set((state) => ({
+          cachedMessages: {
+            ...state.cachedMessages,
+            [conversationId]: res.data,
+          },
+        }));
+      }
     } catch (error) {
       console.log('Error getting messages:', error);
     } finally {
-      if (!hasCache) {
+      if (get().selectedConversation?._id === conversationId) {
         set({ isMessagesLoading: false });
       }
     }
@@ -215,7 +265,14 @@ export const useChatStore = create((set, get) => ({
     }
 
     const cached = selectedConversation ? get().cachedMessages[selectedConversation._id] || [] : [];
-    set({ selectedConversation, messages: cached, replyingToMessage: null });
+    const hasCache = selectedConversation && get().cachedMessages[selectedConversation._id];
+
+    set({
+      selectedConversation,
+      messages: cached,
+      replyingToMessage: null,
+      isMessagesLoading: selectedConversation && !hasCache ? true : false
+    });
 
     if (selectedConversation) {
       set((state) => ({
@@ -234,6 +291,9 @@ export const useChatStore = create((set, get) => ({
   subscribeToMessages: () => {
     const { socket } = useAuthStore.getState();
     if (!socket) return;
+
+    // Clean up first to prevent duplicate listeners
+    get().unsubscribeFromMessages();
 
     socket.on('newMessage', (message) => {
       const { selectedConversation, messages } = get();
