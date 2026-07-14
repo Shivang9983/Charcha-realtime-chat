@@ -83,8 +83,18 @@ export const useChatStore = create((set, get) => ({
   replyingToMessage: null,
   unreadCounts: {},
   cachedMessages: {},
+  onlineUserProfiles: [],
 
   setReplyingToMessage: (message) => set({ replyingToMessage: message }),
+
+  getOnlineUserProfiles: async () => {
+    try {
+      const res = await axiosInstance.get('/users/online');
+      set({ onlineUserProfiles: res.data });
+    } catch (error) {
+      console.log('Error getting online user profiles:', error);
+    }
+  },
 
   getConversations: async () => {
     set({ isConversationsLoading: true });
