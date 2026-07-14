@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useChatStore } from '../stores/useChatStore';
@@ -46,7 +46,7 @@ const SidebarConversationItem = memo(({
   return (
     <button
       onClick={() => setSelectedConversation(conv)}
-      className={`w-full flex items-center gap-3 p-3 transition-all-200 cursor-pointer border-l-4 rounded-xl ${
+      className={`w-full flex items-center gap-3 p-3 transition-all duration-200 cursor-pointer border-l-4 rounded-xl ${
         isSelected
           ? 'bg-slate-100 dark:bg-neutral-900 border-indigo-500 text-indigo-600 dark:text-white font-medium'
           : 'border-transparent text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-neutral-900/30 hover:text-slate-800 dark:hover:text-slate-200'
@@ -79,6 +79,34 @@ const SidebarConversationItem = memo(({
 
 SidebarConversationItem.displayName = 'SidebarConversationItem';
 
+const SidebarOnlineUserItem = memo(({ user, onClick }) => {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 transition-all duration-200 cursor-pointer border-l-4 border-transparent rounded-xl text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-neutral-900/30 hover:text-slate-800 dark:hover:text-slate-200"
+    >
+      <div className="relative flex-shrink-0">
+        <img
+          src={user.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${user.username}`}
+          alt={user.username}
+          className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-neutral-800/40"
+        />
+        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-950 animate-pulse-glow" />
+      </div>
+      <div className="flex-1 min-w-0 text-left">
+        <h4 className="text-sm font-semibold text-slate-850 dark:text-slate-250 truncate">
+          {user.username}
+        </h4>
+        <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+          Active Now
+        </p>
+      </div>
+    </button>
+  );
+});
+
+SidebarOnlineUserItem.displayName = 'SidebarOnlineUserItem';
+
 export default function Sidebar() {
   const authUser = useAuthStore((state) => state.authUser);
   const logout = useAuthStore((state) => state.logout);
@@ -94,6 +122,7 @@ export default function Sidebar() {
   const isConversationsLoading = useChatStore((state) => state.isConversationsLoading);
   const startConversation = useChatStore((state) => state.startConversation);
   const unreadCounts = useChatStore((state) => state.unreadCounts);
+  const onlineUserProfiles = useChatStore((state) => state.onlineUserProfiles);
 
   const { addToast } = useToastStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,7 +153,20 @@ export default function Sidebar() {
     }
   };
 
-  const handleSelectUser = async (user) => {
+  const handleSelectOnlineUser = async (user) => {
+    // Check if conversation already exists in local list to avoid database calls
+    const existingConv = conversations.find(
+      (c) => !c.isGroup && c.participants.some((p) => p._id === user._id)
+    );
+
+    if (existingConv) {
+      setSelectedConversation(existingConv);
+      setSearchQuery('');
+      setSearchResults([]);
+      return;
+    }
+
+    // Call API to start/get conversation if not already cached
     const newConv = await startConversation({ userId: user._id, isGroup: false });
     if (newConv) {
       setSelectedConversation(newConv);
@@ -156,6 +198,27 @@ export default function Sidebar() {
       )
     );
   };
+
+  // Local Search Filtering calculations
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return conversations.filter((conv) => {
+      if (conv.isGroup) {
+        return conv.groupName.toLowerCase().includes(query);
+      }
+      const recipient = conv.participants.find((p) => p._id !== authUser._id);
+      return recipient?.username.toLowerCase().includes(query);
+    });
+  }, [conversations, searchQuery, authUser]);
+
+  const filteredOnlineUsers = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return (onlineUserProfiles || []).filter((user) =>
+      user.username.toLowerCase().includes(query)
+    );
+  }, [onlineUserProfiles, searchQuery]);
 
   if (isConversationsLoading && conversations.length === 0) {
     return <SidebarSkeleton />;
@@ -224,81 +287,158 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto">
         {searchQuery.trim() ? (
           /* Search Results */
-          <div className="p-2 space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Search Results</h3>
-            {isSearching ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
+          <div className="p-2 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            {/* Matching Conversations */}
+            {filteredConversations.length > 0 && (
+              <div className="space-y-1">
+                <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500/80">Chats</h3>
+                {filteredConversations.map((conv) => {
+                  const isSelected = selectedConversation?._id === conv._id;
+                  let recipient = null;
+                  if (!conv.isGroup) {
+                    recipient = conv.participants.find((p) => p._id !== authUser._id);
+                  }
+                  const isOnline = !conv.isGroup && recipient && onlineUsers.includes(recipient._id);
+                  const unreadCount = unreadCounts[conv._id] || 0;
+
+                  return (
+                    <SidebarConversationItem
+                      key={conv._id}
+                      conv={conv}
+                      isSelected={isSelected}
+                      isOnline={isOnline}
+                      unreadCount={unreadCount}
+                      authUser={authUser}
+                      setSelectedConversation={setSelectedConversation}
+                    />
+                  );
+                })}
               </div>
-            ) : searchResults.length > 0 ? (
-              searchResults.map((user) => (
-                <button
-                  key={user._id}
-                  onClick={() => handleSelectUser(user)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-neutral-900/60 text-left transition-all duration-200 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-neutral-800/60"
-                >
-                  <img
-                    src={user.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${user.username}`}
-                    alt={user.username}
-                    className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-neutral-800"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">
-                      {highlightText(user.username, searchQuery)}
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-450 truncate">
-                      {highlightText(user.email, searchQuery)}
-                    </p>
-                  </div>
-                </button>
-              ))
-            ) : (
-              <p className="text-center py-6 text-xs text-slate-500">No users match query</p>
             )}
+
+            {/* Matching Online Users */}
+            {filteredOnlineUsers.length > 0 && (
+              <div className="space-y-1">
+                <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500/80">Online Users</h3>
+                {filteredOnlineUsers.map((user) => (
+                  <SidebarOnlineUserItem
+                    key={user._id}
+                    user={user}
+                    onClick={() => handleSelectOnlineUser(user)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Global/Database Search Results */}
+            <div className="space-y-1">
+              <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Directory Results</h3>
+              {isSearching ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
+                </div>
+              ) : searchResults.length > 0 ? (
+                searchResults
+                  .filter(
+                    (user) =>
+                      !filteredOnlineUsers.some((ou) => ou._id === user._id) &&
+                      !filteredConversations.some(
+                        (c) => !c.isGroup && c.participants.some((p) => p._id === user._id)
+                      )
+                  )
+                  .map((user) => (
+                    <button
+                      key={user._id}
+                      onClick={() => handleSelectOnlineUser(user)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-neutral-900/60 text-left transition-all duration-200 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-neutral-800/60"
+                    >
+                      <img
+                        src={user.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${user.username}`}
+                        alt={user.username}
+                        className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-neutral-800"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">
+                          {highlightText(user.username, searchQuery)}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-455 truncate">
+                          {highlightText(user.email, searchQuery)}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+              ) : (
+                <p className="text-center py-6 text-xs text-slate-500">No other users match query</p>
+              )}
+            </div>
           </div>
         ) : (
-          /* Active Conversations */
-          <div className="p-2 space-y-1">
-            <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500/80 dark:text-indigo-400/80 flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" /> Chats
-            </h3>
+          /* Active Conversations & Online Users */
+          <div className="p-2 space-y-6">
+            {/* Chats section */}
+            <div className="space-y-1">
+              <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500/80 dark:text-indigo-400/80 flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> Chats
+              </h3>
 
-            {conversations.length > 0 ? (
-              conversations.map((conv) => {
-                const isSelected = selectedConversation?._id === conv._id;
+              {conversations.length > 0 ? (
+                conversations.map((conv) => {
+                  const isSelected = selectedConversation?._id === conv._id;
 
-                let recipient = null;
-                if (!conv.isGroup) {
-                  recipient = conv.participants.find((p) => p._id !== authUser._id);
-                }
+                  let recipient = null;
+                  if (!conv.isGroup) {
+                    recipient = conv.participants.find((p) => p._id !== authUser._id);
+                  }
 
-                const isOnline = !conv.isGroup && recipient && onlineUsers.includes(recipient._id);
-                const unreadCount = unreadCounts[conv._id] || 0;
+                  const isOnline = !conv.isGroup && recipient && onlineUsers.includes(recipient._id);
+                  const unreadCount = unreadCounts[conv._id] || 0;
 
-                return (
-                  <SidebarConversationItem
-                    key={conv._id}
-                    conv={conv}
-                    isSelected={isSelected}
-                    isOnline={isOnline}
-                    unreadCount={unreadCount}
-                    authUser={authUser}
-                    setSelectedConversation={setSelectedConversation}
+                  return (
+                    <SidebarConversationItem
+                      key={conv._id}
+                      conv={conv}
+                      isSelected={isSelected}
+                      isOnline={isOnline}
+                      unreadCount={unreadCount}
+                      authUser={authUser}
+                      setSelectedConversation={setSelectedConversation}
+                    />
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 flex flex-col items-center justify-center gap-3 text-slate-400">
+                  <MessageCircle className="h-9 w-9 stroke-1 text-slate-400 animate-float" />
+                  <p className="text-xs font-semibold">No conversations yet.<br />Search for someone to start chatting.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Online Users section */}
+            <div className="space-y-1">
+              <h3 className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500/80 dark:text-emerald-400/80 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" /> Online Users ({onlineUserProfiles.length})
+              </h3>
+
+              {onlineUserProfiles.length > 0 ? (
+                onlineUserProfiles.map((user) => (
+                  <SidebarOnlineUserItem
+                    key={user._id}
+                    user={user}
+                    onClick={() => handleSelectOnlineUser(user)}
                   />
-                );
-              })
-            ) : (
-              <div className="text-center py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
-                <MessageCircle className="h-9 w-9 stroke-1 text-slate-400 animate-float" />
-                <p className="text-xs font-semibold">No conversations yet.<br />Search for someone to start chatting.</p>
-              </div>
-            )}
+                ))
+              ) : (
+                <div className="text-center py-6 text-xs text-slate-400 font-semibold leading-relaxed">
+                  No other users online
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Bottom Logout Options */}
-      <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-neutral-900 bg-slate-50/20 dark:bg-neutral-950/20 p-3">
+      <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-neutral-900 bg-slate-50/20 dark:bg-neutral-955/20 p-3">
         <button
           onClick={handleLogout}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-bold text-rose-500 dark:text-rose-400 transition-all duration-200 hover:scale-105 hover:bg-rose-500/10 active:scale-95"
@@ -312,4 +452,3 @@ export default function Sidebar() {
     </div>
   );
 }
-

@@ -11,7 +11,8 @@ import NotificationContainer from './components/NotificationContainer';
 
 export default function App() {
   const { authUser, checkAuth, isCheckingAuth, socket } = useAuthStore();
-  const { subscribeToMessages, unsubscribeFromMessages } = useChatStore();
+  const { subscribeToMessages, unsubscribeFromMessages, getOnlineUserProfiles } = useChatStore();
+  const onlineUsers = useAuthStore((state) => state.onlineUsers);
   const [showSplash, setShowSplash] = useState(true);
   const [loadingText, setLoadingText] = useState('Syncing chat environment...');
   const [progress, setProgress] = useState(0);
@@ -32,6 +33,12 @@ export default function App() {
       return () => unsubscribeFromMessages();
     }
   }, [authUser, socket, subscribeToMessages, unsubscribeFromMessages]);
+
+  useEffect(() => {
+    if (authUser && socket) {
+      getOnlineUserProfiles();
+    }
+  }, [authUser, socket, onlineUsers, getOnlineUserProfiles]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
