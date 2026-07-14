@@ -1,4 +1,5 @@
 import User from '../models/user.model.js';
+import { getOnlineUserIds } from '../socket.js';
 
 export const searchUsers = async (req, res) => {
   try {
@@ -51,6 +52,26 @@ export const updateProfile = async (req, res) => {
     res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Error in updateProfile controller:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const getOnlineUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    // Get online IDs from Socket state and exclude current user
+    const onlineIds = getOnlineUserIds().filter((id) => id !== currentUserId.toString());
+
+    // Fetch details of online users
+    const users = await User.find({
+      _id: { $in: onlineIds },
+    })
+      .select('username email avatar')
+      .lean();
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error in getOnlineUsers controller:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

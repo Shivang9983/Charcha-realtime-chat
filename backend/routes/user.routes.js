@@ -1,10 +1,11 @@
 import express from 'express';
-import { searchUsers, updateProfile } from '../controllers/user.controller.js';
+import { searchUsers, updateProfile, getOnlineUsers } from '../controllers/user.controller.js';
 import { protectRoute } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 router.get('/search', protectRoute, searchUsers);
+router.get('/online', protectRoute, getOnlineUsers);
 router.put('/update-profile', protectRoute, updateProfile);
 
 export default router;
