@@ -15,7 +15,7 @@ export const searchUsers = async (req, res) => {
         { username: { $regex: query, $options: 'i' } },
         { email: { $regex: query, $options: 'i' } },
       ],
-    }).select('-password');
+    }).select('-password').lean();
 
     res.status(200).json(users);
   } catch (error) {
@@ -31,7 +31,7 @@ export const updateProfile = async (req, res) => {
 
     const updates = {};
     if (username) {
-      const existingUser = await User.findOne({ username, _id: { $ne: userId } });
+      const existingUser = await User.findOne({ username, _id: { $ne: userId } }).select('_id').lean();
       if (existingUser) {
         return res.status(400).json({ error: 'Username is already taken' });
       }
@@ -46,7 +46,7 @@ export const updateProfile = async (req, res) => {
       userId,
       { $set: updates },
       { new: true }
-    ).select('-password');
+    ).select('-password').lean();
 
     res.status(200).json(updatedUser);
   } catch (error) {

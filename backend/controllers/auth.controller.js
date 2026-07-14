@@ -14,12 +14,12 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
-    const emailExists = await User.findOne({ email });
+    const emailExists = await User.findOne({ email }).select('_id').lean();
     if (emailExists) {
       return res.status(400).json({ error: 'Email is already registered' });
     }
 
-    const userExists = await User.findOne({ username });
+    const userExists = await User.findOne({ username }).select('_id').lean();
     if (userExists) {
       return res.status(400).json({ error: 'Username is already taken' });
     }
@@ -65,7 +65,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username }).lean();
     const isPasswordCorrect = await bcrypt.compare(password, user?.password || '');
 
     if (!user || !isPasswordCorrect) {
@@ -98,7 +98,7 @@ export const logout = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select('-password').lean();
     res.status(200).json(user);
   } catch (error) {
     console.error('Error in getMe controller:', error.message);

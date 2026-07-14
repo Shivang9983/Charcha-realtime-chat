@@ -18,7 +18,8 @@ export const getConversations = async (req, res) => {
           select: 'username avatar',
         },
       })
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .lean();
 
     res.status(200).json(conversations);
   } catch (error) {
@@ -35,7 +36,7 @@ export const getMessages = async (req, res) => {
     const conversation = await Conversation.findOne({
       _id: conversationId,
       participants: userId,
-    }).select('_id');
+    }).select('_id').lean();
 
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found or access denied' });
@@ -51,24 +52,42 @@ export const getMessages = async (req, res) => {
           select: 'username',
         },
       })
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: 1 })
+      .lean();
 
-    // Update read receipts
-    let updated = false;
-    for (let msg of messages) {
-      if (msg.sender._id.toString() !== userId.toString() && !msg.readBy.includes(userId)) {
-        msg.readBy.push(userId);
-        await msg.save();
-        updated = true;
-      }
-    }
-
-    if (updated) {
-      io.to(conversationId.toString()).emit('messagesRead', {
+    // Trigger background read receipt update in a non-blocking manner
+    Message.updateMany(
+      {
         conversationId,
-        readBy: userId,
-      });
-    }
+        sender: { $ne: userId },
+        readBy: { $ne: userId }
+      },
+      {
+        $addToSet: { readBy: userId }
+      }
+    ).then((result) => {
+      if (result.modifiedCount > 0) {
+        io.to(conversationId.toString()).emit('messagesRead', {
+          conversationId,
+          readBy: userId,
+        });
+      }
+    }).catch(err => {
+      console.error('Error updating read receipts in background:', err.message);
+    });
+
+    // In-memory update of readBy for the immediate API response
+    const userIdStr = userId.toString();
+    messages.forEach((msg) => {
+      const senderId = typeof msg.sender === 'object' ? msg.sender._id : msg.sender;
+      if (senderId && senderId.toString() !== userIdStr) {
+        if (!msg.readBy) msg.readBy = [];
+        const hasRead = msg.readBy.some((rId) => rId.toString() === userIdStr);
+        if (!hasRead) {
+          msg.readBy.push(userId);
+        }
+      }
+    });
 
     res.status(200).json(messages);
   } catch (error) {
@@ -83,12 +102,12 @@ export const sendMessage = async (req, res) => {
     const { id: conversationId } = req.params;
     const senderId = req.user._id;
 
-    const conversation = await Conversation.findOne({
+    const conversationExists = await Conversation.findOne({
       _id: conversationId,
       participants: senderId,
-    });
+    }).select('_id').lean();
 
-    if (!conversation) {
+    if (!conversationExists) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
@@ -102,8 +121,11 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    conversation.latestMessage = newMessage._id;
-    await conversation.save();
+    const updatedConversation = await Conversation.findOneAndUpdate(
+      { _id: conversationId, participants: senderId },
+      { latestMessage: newMessage._id },
+      { new: true }
+    ).select('participants updatedAt').lean();
 
     const populatedMessage = await Message.findById(newMessage._id)
       .populate('sender', 'username avatar')
@@ -114,22 +136,25 @@ export const sendMessage = async (req, res) => {
           path: 'sender',
           select: 'username',
         },
-      });
+      })
+      .lean();
 
     // Emit event to the socket room
     io.to(conversationId.toString()).emit('newMessage', populatedMessage);
 
     // Broadcast updated conversation state for the sidebar previews
-    conversation.participants.forEach((partId) => {
-      const socketId = getReceiverSocketId(partId.toString());
-      if (socketId) {
-        io.to(socketId).emit('conversationUpdate', {
-          conversationId,
-          latestMessage: populatedMessage,
-          updatedAt: conversation.updatedAt,
-        });
-      }
-    });
+    if (updatedConversation) {
+      updatedConversation.participants.forEach((partId) => {
+        const socketId = getReceiverSocketId(partId.toString());
+        if (socketId) {
+          io.to(socketId).emit('conversationUpdate', {
+            conversationId,
+            latestMessage: populatedMessage,
+            updatedAt: updatedConversation.updatedAt,
+          });
+        }
+      });
+    }
 
     res.status(201).json(populatedMessage);
   } catch (error) {
@@ -162,7 +187,7 @@ export const startConversation = async (req, res) => {
       const populatedConv = await Conversation.findById(newConversation._id).populate(
         'participants',
         'username email avatar'
-      );
+      ).lean();
 
       // Notify all connected group participants about the new conversation
       allParticipants.forEach((partId) => {
@@ -183,7 +208,8 @@ export const startConversation = async (req, res) => {
         participants: { $all: [currentUserId, userId] },
       })
         .populate('participants', 'username email avatar')
-        .populate('latestMessage');
+        .populate('latestMessage')
+        .lean();
 
       if (conversation) {
         return res.status(200).json(conversation);
@@ -199,7 +225,7 @@ export const startConversation = async (req, res) => {
       const populatedConv = await Conversation.findById(conversation._id).populate(
         'participants',
         'username email avatar'
-      );
+      ).lean();
 
       // Notify both participants
       populatedConv.participants.forEach((p) => {
@@ -255,13 +281,16 @@ export const editMessage = async (req, res) => {
           path: 'sender',
           select: 'username',
         },
-      });
+      })
+      .lean();
 
     // Emit socket event to the conversation room
     io.to(message.conversationId.toString()).emit('messageUpdated', populatedMessage);
 
     // Update conversation latest message if needed
-    const conversation = await Conversation.findById(message.conversationId);
+    const conversation = await Conversation.findById(message.conversationId)
+      .select('latestMessage participants')
+      .lean();
     if (conversation && conversation.latestMessage && conversation.latestMessage.toString() === message._id.toString()) {
       conversation.participants.forEach((partId) => {
         const socketId = getReceiverSocketId(partId.toString());
@@ -301,7 +330,9 @@ export const deleteMessage = async (req, res) => {
     const conversation = await Conversation.findOne({
       _id: message.conversationId,
       participants: userId,
-    });
+    })
+      .select('latestMessage participants')
+      .lean();
 
     if (!conversation) {
       return res.status(403).json({ error: 'Access denied or conversation not found' });
@@ -325,7 +356,8 @@ export const deleteMessage = async (req, res) => {
             path: 'sender',
             select: 'username',
           },
-        });
+        })
+        .lean();
 
       // Emit socket event to the conversation room
       io.to(message.conversationId.toString()).emit('messageUpdated', populatedMessage);
