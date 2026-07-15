@@ -246,7 +246,7 @@ export default function Sidebar() {
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-black text-slate-800 dark:text-slate-100 select-none md:w-80 md:border-r border-slate-200/80 dark:border-neutral-900 animate-page-entrance">
       {/* Top Profile Header */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-slate-50/50 dark:bg-neutral-955/40 p-4">
+      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-transparent py-3.5 px-4">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/profile')}>
           <div className="relative">
             <img
@@ -254,10 +254,10 @@ export default function Sidebar() {
               alt={authUser.username}
               className="h-10 w-10 rounded-xl object-cover transition-all duration-300 avatar-ring-premium group-hover:scale-105"
             />
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-slate-50 dark:border-neutral-950 animate-pulse-glow" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-black animate-pulse-glow" />
           </div>
           <div className="text-left">
-            <h2 className="font-bold text-slate-900 dark:text-white text-sm tracking-wide truncate max-w-[125px] transition-colors duration-200 group-hover:text-indigo-655 dark:group-hover:text-indigo-400">{authUser.username}</h2>
+            <h2 className="font-bold text-slate-900 dark:text-white text-sm tracking-wide truncate max-w-[125px] transition-colors duration-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-400">{authUser.username}</h2>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mt-1 group-hover:text-indigo-500/80 dark:group-hover:text-indigo-400/80 transition-colors duration-200">My Profile</p>
           </div>
         </div>
