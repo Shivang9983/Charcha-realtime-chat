@@ -6,8 +6,9 @@ import { useToastStore } from '../stores/useToastStore';
 import { axiosInstance } from '../lib/axios';
 import GroupModal from './GroupModal';
 import ThemeToggle from './ThemeToggle';
+import SidebarFooter from './SidebarFooter';
 import { SidebarSkeleton } from './Skeleton';
-import { Search, LogOut, MessageSquare, Loader2, Plus, MessageCircle } from 'lucide-react';
+import { Search, MessageSquare, Loader2, Plus, MessageCircle } from 'lucide-react';
 
 const SidebarConversationItem = memo(({
   conv,
@@ -17,9 +18,13 @@ const SidebarConversationItem = memo(({
   authUser,
   setSelectedConversation
 }) => {
+  const authUserIdStr = String(authUser?._id);
   let recipient = null;
-  if (!conv.isGroup) {
-    recipient = conv.participants.find((p) => p._id !== authUser._id);
+  if (!conv.isGroup && conv.participants) {
+    recipient = conv.participants.find((p) => {
+      const pId = typeof p === 'object' ? p?._id : p;
+      return String(pId) !== authUserIdStr;
+    });
   }
 
   const chatName = conv.isGroup ? conv.groupName : recipient?.username || 'Unknown Chat';
@@ -31,17 +36,18 @@ const SidebarConversationItem = memo(({
   let messagePreview = 'No messages yet';
   const getSenderId = (sender) => {
     if (!sender) return null;
-    return typeof sender === 'object' ? sender._id : sender;
+    const sId = typeof sender === 'object' ? sender._id : sender;
+    return sId ? String(sId) : null;
   };
   if (latestMsg) {
-    const prefix = getSenderId(latestMsg.sender) === authUser._id ? 'You: ' : '';
+    const prefix = getSenderId(latestMsg.sender) === authUserIdStr ? 'You: ' : '';
     messagePreview = `${prefix}${latestMsg.content}`;
   }
 
   const isUnread =
     latestMsg &&
-    getSenderId(latestMsg.sender) !== authUser._id &&
-    !latestMsg.readBy.includes(authUser._id);
+    getSenderId(latestMsg.sender) !== authUserIdStr &&
+    !latestMsg.readBy.some((id) => String(typeof id === 'object' ? id?._id : id) === authUserIdStr);
 
   return (
     <button
@@ -55,7 +61,7 @@ const SidebarConversationItem = memo(({
       <div className="relative flex-shrink-0">
         <img src={chatAvatar} alt={chatName} className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-neutral-800/40" />
         {isOnline && (
-          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-950 animate-pulse-glow" />
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-955 animate-pulse-glow" />
         )}
       </div>
       <div className="flex-1 min-w-0 text-left">
@@ -69,7 +75,7 @@ const SidebarConversationItem = memo(({
             </span>
           )}
         </div>
-        <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : isUnread ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-400 dark:text-slate-450'}`}>
+        <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : isUnread ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-400 dark:text-slate-455'}`}>
           {messagePreview}
         </p>
       </div>
@@ -91,7 +97,7 @@ const SidebarOnlineUserItem = memo(({ user, onClick }) => {
           alt={user.username}
           className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-neutral-800/40"
         />
-        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-950 animate-pulse-glow" />
+        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-955 animate-pulse-glow" />
       </div>
       <div className="flex-1 min-w-0 text-left">
         <h4 className="text-sm font-semibold text-slate-850 dark:text-slate-250 truncate">
@@ -154,10 +160,17 @@ export default function Sidebar() {
   };
 
   const handleSelectOnlineUser = async (user) => {
+    if (!user) return;
+    const targetUserIdStr = String(user._id);
+    
     // Check if conversation already exists in local list to avoid database calls
-    const existingConv = conversations.find(
-      (c) => !c.isGroup && c.participants.some((p) => p._id === user._id)
-    );
+    const existingConv = conversations.find((c) => {
+      if (c.isGroup || !c.participants) return false;
+      return c.participants.some((p) => {
+        const pId = typeof p === 'object' ? p?._id : p;
+        return String(pId) === targetUserIdStr;
+      });
+    });
 
     if (existingConv) {
       setSelectedConversation(existingConv);
@@ -203,12 +216,18 @@ export default function Sidebar() {
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
+    const authUserIdStr = String(authUser?._id);
+
     return conversations.filter((conv) => {
       if (conv.isGroup) {
-        return conv.groupName.toLowerCase().includes(query);
+        return conv.groupName?.toLowerCase().includes(query);
       }
-      const recipient = conv.participants.find((p) => p._id !== authUser._id);
-      return recipient?.username.toLowerCase().includes(query);
+      if (!conv.participants) return false;
+      const recipient = conv.participants.find((p) => {
+        const pId = typeof p === 'object' ? p?._id : p;
+        return String(pId) !== authUserIdStr;
+      });
+      return recipient?.username?.toLowerCase().includes(query);
     });
   }, [conversations, searchQuery, authUser]);
 
@@ -216,7 +235,7 @@ export default function Sidebar() {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
     return (onlineUserProfiles || []).filter((user) =>
-      user.username.toLowerCase().includes(query)
+      user.username?.toLowerCase().includes(query)
     );
   }, [onlineUserProfiles, searchQuery]);
 
@@ -227,7 +246,7 @@ export default function Sidebar() {
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-black text-slate-800 dark:text-slate-100 select-none md:w-80 md:border-r border-slate-200/80 dark:border-neutral-900 animate-page-entrance">
       {/* Top Profile Header */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-slate-50/50 dark:bg-neutral-950/40 p-4">
+      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-slate-50/50 dark:bg-neutral-955/40 p-4">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/profile')}>
           <div className="relative">
             <img
@@ -235,10 +254,10 @@ export default function Sidebar() {
               alt={authUser.username}
               className="h-10 w-10 rounded-xl border border-indigo-500/35 object-cover transition-all duration-300 group-hover:scale-105 group-hover:shadow-md"
             />
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-950 animate-pulse-glow" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-955 animate-pulse-glow" />
           </div>
           <div className="text-left">
-            <h2 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-wide truncate max-w-[125px] transition-colors group-hover:text-indigo-500">{authUser.username}</h2>
+            <h2 className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-wide truncate max-w-[125px] transition-colors group-hover:text-indigo-500">{authUser.username}</h2>
             <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-wider">My Profile</p>
           </div>
         </div>
@@ -265,7 +284,7 @@ export default function Sidebar() {
               setSearchQuery(e.target.value);
               if (!e.target.value.trim()) setSearchResults([]);
             }}
-            className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 py-2.5 pl-9 pr-12 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-450 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
+            className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-955 py-2.5 pl-9 pr-12 text-xs text-slate-850 dark:text-slate-100 placeholder-slate-450 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           {searchQuery && (
@@ -295,10 +314,14 @@ export default function Sidebar() {
                 {filteredConversations.map((conv) => {
                   const isSelected = selectedConversation?._id === conv._id;
                   let recipient = null;
-                  if (!conv.isGroup) {
-                    recipient = conv.participants.find((p) => p._id !== authUser._id);
+                  const authUserIdStr = String(authUser?._id);
+                  if (!conv.isGroup && conv.participants) {
+                    recipient = conv.participants.find((p) => {
+                      const pId = typeof p === 'object' ? p?._id : p;
+                      return String(pId) !== authUserIdStr;
+                    });
                   }
-                  const isOnline = !conv.isGroup && recipient && onlineUsers.includes(recipient._id);
+                  const isOnline = !conv.isGroup && recipient && onlineUsers.some((id) => String(id) === String(recipient._id || recipient));
                   const unreadCount = unreadCounts[conv._id] || 0;
 
                   return (
@@ -341,9 +364,15 @@ export default function Sidebar() {
                 searchResults
                   .filter(
                     (user) =>
-                      !filteredOnlineUsers.some((ou) => ou._id === user._id) &&
+                      !filteredOnlineUsers.some((ou) => String(ou._id) === String(user._id)) &&
                       !filteredConversations.some(
-                        (c) => !c.isGroup && c.participants.some((p) => p._id === user._id)
+                        (c) => {
+                          if (c.isGroup || !c.participants) return false;
+                          return c.participants.some((p) => {
+                            const pId = typeof p === 'object' ? p?._id : p;
+                            return String(pId) === String(user._id);
+                          });
+                        }
                       )
                   )
                   .map((user) => (
@@ -386,11 +415,15 @@ export default function Sidebar() {
                   const isSelected = selectedConversation?._id === conv._id;
 
                   let recipient = null;
-                  if (!conv.isGroup) {
-                    recipient = conv.participants.find((p) => p._id !== authUser._id);
+                  const authUserIdStr = String(authUser?._id);
+                  if (!conv.isGroup && conv.participants) {
+                    recipient = conv.participants.find((p) => {
+                      const pId = typeof p === 'object' ? p?._id : p;
+                      return String(pId) !== authUserIdStr;
+                    });
                   }
 
-                  const isOnline = !conv.isGroup && recipient && onlineUsers.includes(recipient._id);
+                  const isOnline = !conv.isGroup && recipient && onlineUsers.some((id) => String(id) === String(recipient._id || recipient));
                   const unreadCount = unreadCounts[conv._id] || 0;
 
                   return (
@@ -437,16 +470,9 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Bottom Logout Options */}
-      <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-neutral-900 bg-slate-50/20 dark:bg-neutral-955/20 p-3">
-        <button
-          onClick={handleLogout}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-bold text-rose-500 dark:text-rose-400 transition-all duration-200 hover:scale-105 hover:bg-rose-500/10 active:scale-95"
-        >
-          <LogOut className="h-4 w-4" />
-          Log Out
-        </button>
-      </div>
+      {/* Bottom User Footer Card */}
+      <SidebarFooter authUser={authUser} handleLogout={handleLogout} />
+
 
       <GroupModal isOpen={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} />
     </div>
