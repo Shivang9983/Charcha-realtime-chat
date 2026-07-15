@@ -11,8 +11,12 @@ export default function ChatHeader() {
   if (!selectedConversation) return null;
 
   let recipient = null;
-  if (!selectedConversation.isGroup) {
-    recipient = selectedConversation.participants.find((p) => p._id !== authUser._id);
+  const authUserIdStr = String(authUser?._id);
+  if (!selectedConversation.isGroup && selectedConversation.participants) {
+    recipient = selectedConversation.participants.find((p) => {
+      const pId = typeof p === 'object' ? p?._id : p;
+      return String(pId) !== authUserIdStr;
+    });
   }
 
   const chatName = selectedConversation.isGroup
@@ -23,7 +27,7 @@ export default function ChatHeader() {
     ? `https://api.dicebear.com/8.x/initials/svg?seed=${selectedConversation.groupName}`
     : recipient?.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${chatName}`;
 
-  const isOnline = !selectedConversation.isGroup && recipient && onlineUsers.includes(recipient._id);
+  const isOnline = !selectedConversation.isGroup && recipient && onlineUsers.some((id) => String(id) === String(recipient._id || recipient));
 
   return (
     <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-white/90 dark:bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-200">

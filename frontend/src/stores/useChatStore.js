@@ -61,13 +61,13 @@ const areMessagesEqual = (msgsA, msgsB) => {
     if ((a.readBy?.length || 0) !== (b.readBy?.length || 0)) return false;
     
     // Check sender
-    const aSender = typeof a.sender === 'object' ? a.sender?._id : a.sender;
-    const bSender = typeof b.sender === 'object' ? b.sender?._id : b.sender;
+    const aSender = a.sender ? String(typeof a.sender === 'object' ? a.sender?._id : a.sender) : null;
+    const bSender = b.sender ? String(typeof b.sender === 'object' ? b.sender?._id : b.sender) : null;
     if (aSender !== bSender) return false;
 
     // Check replyTo
-    const aReply = typeof a.replyTo === 'object' ? a.replyTo?._id : a.replyTo;
-    const bReply = typeof b.replyTo === 'object' ? b.replyTo?._id : b.replyTo;
+    const aReply = a.replyTo ? String(typeof a.replyTo === 'object' ? a.replyTo?._id : a.replyTo) : null;
+    const bReply = b.replyTo ? String(typeof b.replyTo === 'object' ? b.replyTo?._id : b.replyTo) : null;
     if (aReply !== bReply) return false;
   }
   return true;
@@ -377,10 +377,13 @@ export const useChatStore = create((set, get) => ({
 
     socket.on('messagesRead', ({ conversationId, readBy }) => {
       const { selectedConversation, messages } = get();
+      const readByStr = String(readBy);
+
       if (selectedConversation && selectedConversation._id === conversationId) {
         const updatedMessages = messages.map((msg) => {
-          const senderId = typeof msg.sender === 'object' ? msg.sender?._id : msg.sender;
-          if (senderId !== readBy && !msg.readBy.includes(readBy)) {
+          const senderIdStr = String(typeof msg.sender === 'object' ? msg.sender?._id : msg.sender);
+          const hasRead = msg.readBy.some((id) => String(typeof id === 'object' ? id?._id : id) === readByStr);
+          if (senderIdStr !== readByStr && !hasRead) {
             return { ...msg, readBy: [...msg.readBy, readBy] };
           }
           return msg;
@@ -396,8 +399,9 @@ export const useChatStore = create((set, get) => ({
         // Update cache for background conversation
         const cached = get().cachedMessages[conversationId] || [];
         const updatedCached = cached.map((msg) => {
-          const senderId = typeof msg.sender === 'object' ? msg.sender?._id : msg.sender;
-          if (senderId !== readBy && !msg.readBy.includes(readBy)) {
+          const senderIdStr = String(typeof msg.sender === 'object' ? msg.sender?._id : msg.sender);
+          const hasRead = msg.readBy.some((id) => String(typeof id === 'object' ? id?._id : id) === readByStr);
+          if (senderIdStr !== readByStr && !hasRead) {
             return { ...msg, readBy: [...msg.readBy, readBy] };
           }
           return msg;

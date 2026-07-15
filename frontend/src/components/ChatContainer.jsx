@@ -25,7 +25,8 @@ const formatDividerDate = (date) => {
 
 const getSenderId = (sender) => {
   if (!sender) return null;
-  return typeof sender === 'object' ? sender._id : sender;
+  const sId = typeof sender === 'object' ? sender._id : sender;
+  return sId ? String(sId) : null;
 };
 
 const getSenderUsername = (sender) => {
@@ -39,7 +40,7 @@ const getSenderAvatar = (sender) => {
 };
 
 const getTypingUserAvatar = (username, selectedConversation) => {
-  if (!selectedConversation) return null;
+  if (!selectedConversation || !selectedConversation.participants) return null;
   const participant = selectedConversation.participants.find((p) => p.username === username);
   return participant?.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${username}`;
 };
@@ -546,11 +547,24 @@ export default function ChatContainer() {
 
   const isReadByRecipient = useCallback((msg) => {
     if (!selectedConversation || !authUser) return false;
+    const authUserIdStr = String(authUser._id);
     if (selectedConversation.isGroup) {
-      return msg.readBy.some((id) => id !== authUser._id);
+      return msg.readBy.some((id) => {
+        const idStr = String(typeof id === 'object' ? id?._id : id);
+        return idStr !== authUserIdStr;
+      });
     }
-    const recipient = selectedConversation.participants.find((p) => p._id !== authUser._id);
-    return recipient && msg.readBy.includes(recipient._id);
+    if (!selectedConversation.participants) return false;
+    const recipient = selectedConversation.participants.find((p) => {
+      const pId = typeof p === 'object' ? p?._id : p;
+      return String(pId) !== authUserIdStr;
+    });
+    if (!recipient) return false;
+    const recipientIdStr = String(recipient._id || recipient);
+    return msg.readBy.some((id) => {
+      const idStr = String(typeof id === 'object' ? id?._id : id);
+      return idStr === recipientIdStr;
+    });
   }, [selectedConversation, authUser]);
 
   // Group messages chronologically with layout triggers (first/last in consecutive sender group)
@@ -635,7 +649,7 @@ export default function ChatContainer() {
             }
 
             const msg = item.data;
-            const isMe = getSenderId(msg.sender) === authUser?._id;
+            const isMe = getSenderId(msg.sender) === String(authUser?._id);
             const read = isReadByRecipient(msg);
             const isFirst = msg.isFirstInGroup;
             const isLast = msg.isLastInGroup;
@@ -651,7 +665,7 @@ export default function ChatContainer() {
                 read={read}
                 isFirst={isFirst}
                 isLast={isLast}
-                isGroup={selectedConversation.isGroup}
+                isGroup={selectedConversation?.isGroup}
                 username={username}
                 avatar={avatar}
                 isReactionSelectorOpen={activeReactionId === msg._id}
