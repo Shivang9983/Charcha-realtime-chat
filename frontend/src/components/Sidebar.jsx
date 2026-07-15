@@ -252,13 +252,13 @@ export default function Sidebar() {
             <img
               src={authUser.avatar || `https://api.dicebear.com/8.x/adventurer/svg?seed=${authUser.username}`}
               alt={authUser.username}
-              className="h-10 w-10 rounded-xl border border-indigo-500/35 object-cover transition-all duration-300 group-hover:scale-105 group-hover:shadow-md"
+              className="h-10 w-10 rounded-xl object-cover transition-all duration-300 avatar-ring-premium group-hover:scale-105"
             />
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-955 animate-pulse-glow" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-slate-50 dark:border-neutral-950 animate-pulse-glow" />
           </div>
           <div className="text-left">
-            <h2 className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-wide truncate max-w-[125px] transition-colors group-hover:text-indigo-500">{authUser.username}</h2>
-            <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-wider">My Profile</p>
+            <h2 className="font-bold text-slate-900 dark:text-white text-sm tracking-wide truncate max-w-[125px] transition-colors duration-200 group-hover:text-indigo-655 dark:group-hover:text-indigo-400">{authUser.username}</h2>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mt-1 group-hover:text-indigo-500/80 dark:group-hover:text-indigo-400/80 transition-colors duration-200">My Profile</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -471,7 +471,7 @@ export default function Sidebar() {
       </div>
 
       {/* Bottom User Footer Card */}
-      <SidebarFooter authUser={authUser} handleLogout={handleLogout} />
+      <SidebarFooter handleLogout={handleLogout} />
 
 
       <GroupModal isOpen={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} />
