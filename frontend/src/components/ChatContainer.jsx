@@ -349,6 +349,8 @@ const MessageBubble = memo(({
 
 MessageBubble.displayName = 'MessageBubble';
 
+const EMPTY_OBJECT = {};
+
 export default function ChatContainer() {
   const messages = useChatStore((state) => state.messages);
   const selectedConversation = useChatStore((state) => state.selectedConversation);
@@ -358,16 +360,23 @@ export default function ChatContainer() {
   const setReplyingToMessage = useChatStore((state) => state.setReplyingToMessage);
   const authUser = useAuthStore((state) => state.authUser);
 
-  const otherTypingUsers = useChatStore(
-    (state) => {
-      const typingUsers = state.selectedConversation ? state.typingStatus[state.selectedConversation._id] || {} : {};
-      return Object.entries(typingUsers)
-        .filter(([id]) => id !== useAuthStore.getState().authUser?._id)
-        .map(([_, name]) => name);
-    },
-    (a, b) => a.length === b.length && a.every((val, idx) => val === b[idx])
-  );
+// 1. Get the current authenticated user's ID safely
+const authUserId = useAuthStore((state) => state.authUser?._id);
 
+// 2. Get the raw typing status object for this conversation
+const typingStatusMap = useChatStore((state) => {
+  const currentId = state.selectedConversation?._id;
+  return currentId ? state.typingStatus[currentId] || EMPTY_OBJECT : EMPTY_OBJECT;
+}, (oldMap, newMap) => {
+  // Shallow compare the object keys/values so it only rerenders if typing status actually changes
+  return Object.keys(oldMap).length === Object.keys(newMap).length &&
+    Object.keys(oldMap).every(key => oldMap[key] === newMap[key]);
+});
+
+// 3. Compute the array purely in the component body (No infinite loops!)
+const otherTypingUsers = Object.entries(typingStatusMap)
+  .filter(([id]) => id !== authUserId)
+  .map(([_, name]) => name);
   const scrollContainerRef = useRef(null);
   const [activeReactionId, setActiveReactionId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
