@@ -312,9 +312,10 @@ const MessageBubble = memo(({
                   }
                 }}
                 style={{
-                  aspectRatio: (msg.imageWidth && msg.imageHeight) ? `${msg.imageWidth} / ${msg.imageHeight}` : 'auto',
+                  aspectRatio: (msg.imageWidth && msg.imageHeight) ? `${Number(msg.imageWidth)} / ${Number(msg.imageHeight)}` : 'auto',
                   maxHeight: '300px',
-                  width: '100%',
+                  width: (msg.imageWidth && msg.imageHeight) ? `min(100%, ${(300 * Number(msg.imageWidth)) / Number(msg.imageHeight)}px)` : '100%',
+                  maxWidth: '360px',
                   cursor: (msg.isOptimistic && msg.status === 'uploading') ? 'default' : 'zoom-in',
                 }}
               >
@@ -323,13 +324,8 @@ const MessageBubble = memo(({
                   alt="Sent attachment"
                   loading="lazy"
                   className={`max-h-[300px] w-full object-cover transition-opacity duration-300 ${
-                    msg.isOptimistic && msg.status === 'uploading' ? 'opacity-40' : 'opacity-0'
+                    msg.isOptimistic && msg.status === 'uploading' ? 'opacity-40' : 'opacity-100'
                   }`}
-                  onLoad={(e) => {
-                    if (!msg.isOptimistic || msg.status !== 'uploading') {
-                      e.target.classList.remove('opacity-0');
-                    }
-                  }}
                 />
 
                 {msg.isOptimistic && (
