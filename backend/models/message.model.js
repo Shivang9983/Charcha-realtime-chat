@@ -15,8 +15,19 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, 'Message content is required'],
       trim: true,
+    },
+    image: {
+      type: String,
+      default: null,
+    },
+    imageWidth: {
+      type: Number,
+      default: null,
+    },
+    imageHeight: {
+      type: Number,
+      default: null,
     },
     readBy: [
       {

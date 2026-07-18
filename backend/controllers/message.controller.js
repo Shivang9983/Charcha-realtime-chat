@@ -1,6 +1,7 @@
 import Conversation from '../models/conversation.model.js';
 import Message from '../models/message.model.js';
 import { getReceiverSocketId, io } from '../socket.js';
+import cloudinary from '../utils/cloudinary.js';
 
 export const getConversations = async (req, res) => {
   try {
@@ -12,7 +13,7 @@ export const getConversations = async (req, res) => {
       .populate('participants', 'username avatar')
       .populate({
         path: 'latestMessage',
-        select: 'content sender readBy createdAt',
+        select: 'content image sender readBy createdAt',
         populate: {
           path: 'sender',
           select: 'username avatar',
@@ -98,9 +99,13 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { content, replyTo } = req.body;
+    const { content, replyTo, image, imageWidth, imageHeight } = req.body;
     const { id: conversationId } = req.params;
     const senderId = req.user._id;
+
+    if ((!content || !content.trim()) && !image) {
+      return res.status(400).json({ error: 'Message content or image is required' });
+    }
 
     const conversationExists = await Conversation.findOne({
       _id: conversationId,
@@ -111,10 +116,21 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
+    let imageUrl = null;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        folder: 'charcha_chats',
+      });
+      imageUrl = uploadResponse.secure_url;
+    }
+
     const newMessage = new Message({
       sender: senderId,
       conversationId,
-      content,
+      content: content || '',
+      image: imageUrl,
+      imageWidth: imageWidth || null,
+      imageHeight: imageHeight || null,
       readBy: [senderId],
       replyTo: replyTo || null,
     });
