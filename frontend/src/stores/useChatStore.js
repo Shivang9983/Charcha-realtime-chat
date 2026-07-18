@@ -172,17 +172,148 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  sendMessage: async (content) => {
+  sendMessage: async (content, fileData = null, onUploadProgress = null) => {
     const { selectedConversation, replyingToMessage } = get();
+    const authUser = useAuthStore.getState().authUser;
+    const tempId = `temp-${Date.now()}`;
+
+    let optimisticMsg = null;
+    if (fileData) {
+      optimisticMsg = {
+        _id: tempId,
+        sender: authUser,
+        conversationId: selectedConversation._id,
+        content: content || '',
+        image: fileData.image,
+        imageWidth: fileData.width,
+        imageHeight: fileData.height,
+        createdAt: new Date().toISOString(),
+        readBy: [authUser._id],
+        isOptimistic: true,
+        status: 'uploading',
+        replyTo: replyingToMessage || null,
+      };
+
+      set((state) => {
+        const updatedMessages = [...state.messages, optimisticMsg];
+        return {
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [selectedConversation._id]: updatedMessages,
+          },
+        };
+      });
+    }
+
     try {
       const payload = { content };
       if (replyingToMessage) {
         payload.replyTo = replyingToMessage._id;
       }
-      await axiosInstance.post(`/messages/send/${selectedConversation._id}`, payload);
+      if (fileData) {
+        payload.image = fileData.image;
+        payload.imageWidth = fileData.width;
+        payload.imageHeight = fileData.height;
+      }
+
+      const res = await axiosInstance.post(`/messages/send/${selectedConversation._id}`, payload, {
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onUploadProgress(percentCompleted);
+          }
+        },
+      });
+
+      if (fileData) {
+        set((state) => {
+          const updatedMessages = state.messages.map((m) =>
+            m._id === tempId ? res.data : m
+          );
+          return {
+            messages: updatedMessages,
+            cachedMessages: {
+              ...state.cachedMessages,
+              [selectedConversation._id]: updatedMessages,
+            },
+          };
+        });
+      }
       set({ replyingToMessage: null });
     } catch (error) {
       console.log('Error sending message:', error);
+      if (fileData) {
+        set((state) => {
+          const updatedMessages = state.messages.map((m) =>
+            m._id === tempId ? { ...m, status: 'failed', retryData: { content, fileData } } : m
+          );
+          return {
+            messages: updatedMessages,
+            cachedMessages: {
+              ...state.cachedMessages,
+              [selectedConversation._id]: updatedMessages,
+            },
+          };
+        });
+      }
+      throw error;
+    }
+  },
+
+  retrySendMessage: async (tempId, content, fileData) => {
+    const { selectedConversation } = get();
+
+    set((state) => {
+      const updatedMessages = state.messages.map((m) =>
+        m._id === tempId ? { ...m, status: 'uploading' } : m
+      );
+      return {
+        messages: updatedMessages,
+        cachedMessages: {
+          ...state.cachedMessages,
+          [selectedConversation._id]: updatedMessages,
+        },
+      };
+    });
+
+    try {
+      const payload = { content };
+      if (fileData) {
+        payload.image = fileData.image;
+        payload.imageWidth = fileData.width;
+        payload.imageHeight = fileData.height;
+      }
+
+      const res = await axiosInstance.post(`/messages/send/${selectedConversation._id}`, payload);
+
+      set((state) => {
+        const updatedMessages = state.messages.map((m) =>
+          m._id === tempId ? res.data : m
+        );
+        return {
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [selectedConversation._id]: updatedMessages,
+          },
+        };
+      });
+    } catch (error) {
+      console.log('Error retrying message send:', error);
+      set((state) => {
+        const updatedMessages = state.messages.map((m) =>
+          m._id === tempId ? { ...m, status: 'failed' } : m
+        );
+        return {
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [selectedConversation._id]: updatedMessages,
+          },
+        };
+      });
+      throw error;
     }
   },
 
@@ -209,6 +340,21 @@ export const useChatStore = create((set, get) => ({
   },
 
   deleteMessage: async (messageId, deleteType) => {
+    if (String(messageId).startsWith('temp-')) {
+      set((state) => {
+        const updatedMessages = state.messages.filter((msg) => msg._id !== messageId);
+        const convId = state.selectedConversation?._id;
+        return {
+          messages: updatedMessages,
+          cachedMessages: convId ? {
+            ...state.cachedMessages,
+            [convId]: updatedMessages,
+          } : state.cachedMessages,
+        };
+      });
+      useToastStore.getState().addToast('Optimistic message removed', 'success');
+      return;
+    }
     try {
       const res = await axiosInstance.post(`/messages/delete/${messageId}`, { deleteType });
       if (deleteType === 'me') {
@@ -307,17 +453,37 @@ export const useChatStore = create((set, get) => ({
 
     socket.on('newMessage', (message) => {
       const { selectedConversation, messages } = get();
+      const authUser = useAuthStore.getState().authUser;
+      const isFromMe = authUser && String(typeof message.sender === 'object' ? message.sender._id : message.sender) === String(authUser._id);
+
       if (selectedConversation && message.conversationId === selectedConversation._id) {
-        if (!messages.some((msg) => msg._id === message._id)) {
-          const updatedMessages = [...messages, message];
-          set({ messages: updatedMessages });
-          set((state) => ({
-            cachedMessages: {
-              ...state.cachedMessages,
-              [message.conversationId]: updatedMessages,
-            },
-          }));
+        if (messages.some((msg) => msg._id === message._id)) return;
+
+        // Sync optimistic message if socket event arrives first
+        if (isFromMe) {
+          const optIndex = messages.findIndex((msg) => msg.isOptimistic && msg.status === 'uploading');
+          if (optIndex !== -1) {
+            const updatedMessages = [...messages];
+            updatedMessages[optIndex] = message;
+            set({ messages: updatedMessages });
+            set((state) => ({
+              cachedMessages: {
+                ...state.cachedMessages,
+                [message.conversationId]: updatedMessages,
+              },
+            }));
+            return;
+          }
         }
+
+        const updatedMessages = [...messages, message];
+        set({ messages: updatedMessages });
+        set((state) => ({
+          cachedMessages: {
+            ...state.cachedMessages,
+            [message.conversationId]: updatedMessages,
+          },
+        }));
       } else {
         // Update cache for background conversation
         const convId = message.conversationId;
@@ -477,7 +643,7 @@ export const useChatStore = create((set, get) => ({
         const isCurrentChatOpen = selectedConversation?._id === conversationId;
         const senderName = typeof latestMessage.sender === 'object' ? latestMessage.sender.username : 'Someone';
         const senderAvatar = typeof latestMessage.sender === 'object' ? latestMessage.sender.avatar : '';
-        const messagePreview = latestMessage.content;
+        const messagePreview = latestMessage.content || (latestMessage.image ? '📷 Photo' : '');
         const targetConv = conversations.find((c) => c._id === conversationId) || { _id: conversationId, participants: [], isGroup: false };
 
         // Prevent duplicate sound/notification triggers
