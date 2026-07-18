@@ -41,7 +41,8 @@ const SidebarConversationItem = memo(({
   };
   if (latestMsg) {
     const prefix = getSenderId(latestMsg.sender) === authUserIdStr ? 'You: ' : '';
-    messagePreview = `${prefix}${latestMsg.content}`;
+    const content = latestMsg.content || (latestMsg.image ? '📷 Photo' : '');
+    messagePreview = `${prefix}${content}`;
   }
 
   const isUnread =
