@@ -100,6 +100,7 @@ const MessageBubble = memo(({
   onReplyBadgeClick,
   onImageClick,
   onRetryClick,
+  onDeleteOptimistic,
 }) => {
   let roundedClasses = isMe ? 'rounded-2xl rounded-tr-xs' : 'rounded-2xl rounded-tl-xs';
 
@@ -339,17 +340,30 @@ const MessageBubble = memo(({
                         <span className="text-[10px] font-bold tracking-wider">Uploading...</span>
                       </>
                     ) : msg.status === 'failed' ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-[10px] text-rose-450 font-bold bg-rose-950/70 px-2.5 py-1 rounded-full border border-rose-800/40">Upload Failed</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRetryClick(msg._id, msg.content, msg.retryData?.fileData);
-                          }}
-                          className="px-3 py-1 bg-white hover:bg-slate-100 active:scale-95 text-indigo-600 text-[10px] font-bold rounded-lg transition-all shadow-md cursor-pointer"
-                        >
-                          Retry
-                        </button>
+                      <div className="flex flex-col items-center gap-2.5 p-2 bg-black/60 w-full h-full justify-center">
+                        <span className="text-[11px] text-rose-450 font-extrabold flex items-center gap-1 bg-rose-950/80 px-3 py-1 rounded-full border border-rose-800/40 shadow-md">
+                          ❌ Failed to send
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRetryClick(msg._id, msg.content, msg.retryData?.fileData);
+                            }}
+                            className="px-3 py-1.5 bg-white hover:bg-slate-100 active:scale-95 text-indigo-600 text-[10px] font-extrabold rounded-lg transition-all shadow-md cursor-pointer"
+                          >
+                            Retry
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteOptimistic(msg._id);
+                            }}
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-[10px] font-extrabold rounded-lg transition-all shadow-md cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -705,6 +719,25 @@ const otherTypingUsers = Object.entries(typingStatusMap)
     }
   }, [retrySendMessage]);
 
+  const handleDeleteOptimistic = useCallback(async (tempId) => {
+    try {
+      await deleteMessage(tempId, 'me');
+    } catch (error) {
+      // handled by store
+    }
+  }, [deleteMessage]);
+
+  useEffect(() => {
+    if (viewerImageUrl) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [viewerImageUrl]);
+
   useEffect(() => {
     if (!viewerImageUrl) return;
 
@@ -898,6 +931,7 @@ const otherTypingUsers = Object.entries(typingStatusMap)
                 onReplyBadgeClick={scrollToMessage}
                 onImageClick={handleImageClick}
                 onRetryClick={handleRetryClick}
+                onDeleteOptimistic={handleDeleteOptimistic}
               />
             );
           })

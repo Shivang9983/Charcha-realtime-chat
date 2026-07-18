@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useChatStore } from '../stores/useChatStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useToastStore } from '../stores/useToastStore';
-import { Send, X, Image, Loader2 } from 'lucide-react';
+import { Send, X, Image, Loader2, Smile, Trash2, RefreshCw } from 'lucide-react';
 import { compressImage } from '../lib/imageCompressor';
 
 export default function MessageInput() {
@@ -24,6 +24,18 @@ export default function MessageInput() {
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
+
+  // Freeze/unfreeze body scroll when the composer is open
+  useEffect(() => {
+    if (previewUrl) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     return () => {
@@ -82,6 +94,11 @@ export default function MessageInput() {
       return;
     }
 
+    // Clean up previous preview url if switching
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setSelectedFile(file);
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
@@ -115,9 +132,9 @@ export default function MessageInput() {
       };
 
       const messageContent = caption.trim();
-      
       const previewToRevoke = previewUrl;
       
+      // Close preview immediately so user sees optimistic UI in chat feed
       setSelectedFile(null);
       setPreviewUrl('');
       setCaption('');
@@ -160,7 +177,7 @@ export default function MessageInput() {
 
   return (
     <div className="flex flex-col border-t border-slate-200/85 dark:border-neutral-900 bg-white/90 dark:bg-black/30 backdrop-blur-md animate-in fade-in duration-200">
-      {replyingToMessage && (
+      {replyingToMessage && !previewUrl && (
         <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-150/70 dark:border-neutral-900 bg-slate-50/50 dark:bg-neutral-955/20 text-xs animate-in slide-in-from-bottom-2 duration-150">
           <div className="flex flex-col border-l-3 border-indigo-650 dark:border-indigo-500 pl-3 min-w-0">
             <span className="font-bold text-indigo-650 dark:text-indigo-400">
@@ -173,115 +190,159 @@ export default function MessageInput() {
           <button
             type="button"
             onClick={() => setReplyingToMessage(null)}
-            className="text-slate-450 hover:text-slate-650 dark:hover:text-neutral-350 p-1 rounded-full hover:bg-slate-150 dark:hover:bg-neutral-850 transition-colors cursor-pointer shrink-0"
+            className="text-slate-455 hover:text-slate-650 dark:hover:text-neutral-350 p-1 rounded-full hover:bg-slate-150 dark:hover:bg-neutral-855 transition-colors cursor-pointer shrink-0"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
-      <form onSubmit={handleSend} className="flex items-center gap-2.5 p-4">
-        {/* Attachment image button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 dark:border-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-850 p-3 text-slate-500 dark:text-slate-400 transition-all hover:scale-105 active:scale-95 shadow-xs shrink-0"
-          title="Share an image"
-        >
-          <Image className="h-4.5 w-4.5" />
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
-          className="hidden"
-        />
+      
+      {/* Hide regular text input when preview composer is open */}
+      {!previewUrl && (
+        <form onSubmit={handleSend} className="flex items-center gap-2.5 p-4 animate-in fade-in duration-150">
+          {/* Attachment image button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 dark:border-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-850 p-3 text-slate-500 dark:text-slate-400 transition-all hover:scale-105 active:scale-95 shadow-xs shrink-0"
+            title="Share an image"
+          >
+            <Image className="h-4.5 w-4.5" />
+          </button>
+          
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={content}
+              onChange={handleInputChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 px-4 py-3 pr-12 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 shadow-xs"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!content.trim()}
+            className="flex-shrink-0 cursor-pointer rounded-xl bg-indigo-600 p-3 text-white transition-all duration-200 hover:scale-105 hover:bg-indigo-500 hover:shadow-md active:scale-95 disabled:opacity-40 shadow-sm shrink-0"
+          >
+            <Send className="h-4.5 w-4.5" />
+          </button>
+        </form>
+      )}
 
-        <div className="relative flex-1">
-          <input
-            type="text"
-            placeholder="Type a message..."
-            value={content}
-            onChange={handleInputChange}
-            className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 px-4 py-3 pr-12 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 shadow-xs"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!content.trim()}
-          className="flex-shrink-0 cursor-pointer rounded-xl bg-indigo-600 p-3 text-white transition-all duration-200 hover:scale-105 hover:bg-indigo-500 hover:shadow-md active:scale-95 disabled:opacity-40 shadow-sm shrink-0"
-        >
-          <Send className="h-4.5 w-4.5" />
-        </button>
-      </form>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
+        className="hidden"
+      />
 
-      {/* Image Preview and Upload Modal */}
+      {/* Fullscreen Image Composer Modal (WhatsApp Web Style) */}
       {previewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-neutral-950 border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-200 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-neutral-900">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-neutral-200">Preview Image</h3>
+        <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950/98 backdrop-blur-md animate-in fade-in duration-200 select-none">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-900/60 bg-neutral-950/40 text-neutral-200">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleCancelPreview}
                 disabled={isUploading}
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-neutral-900 text-slate-400 dark:text-neutral-500 cursor-pointer transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white cursor-pointer transition-colors disabled:opacity-50"
+                title="Discard attachment"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
+              <div className="text-left">
+                <p className="text-xs font-bold text-neutral-100 truncate max-w-[200px] sm:max-w-xs">{selectedFile?.name}</p>
+                <p className="text-[10px] text-neutral-500 font-semibold mt-0.5">{(selectedFile?.size / (1024 * 1024)).toFixed(2)} MB</p>
+              </div>
             </div>
+          </div>
 
-            <div className="relative aspect-video max-h-[220px] w-full rounded-2xl overflow-hidden bg-slate-50 dark:bg-neutral-955 flex items-center justify-center border border-slate-100 dark:border-neutral-900">
-              <img src={previewUrl} alt="Preview" className="max-h-full max-w-full object-contain" />
+          {/* Centered Image Preview Area */}
+          <div className="flex-1 flex items-center justify-center p-6 min-h-0 bg-neutral-950/20">
+            <div className="relative max-h-full max-w-full flex items-center justify-center">
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="max-h-[60vh] max-w-[90vw] object-contain rounded-lg shadow-2xl border border-neutral-900/30"
+              />
             </div>
+          </div>
 
-            <div className="text-left text-[11px] leading-relaxed space-y-0.5 text-slate-500 dark:text-neutral-450">
-              <p className="truncate"><span className="font-bold">File Name:</span> {selectedFile?.name}</p>
-              <p><span className="font-bold">File Size:</span> {(selectedFile?.size / (1024 * 1024)).toFixed(2)} MB</p>
-            </div>
-
-            {/* Caption Input */}
-            <input
-              type="text"
-              placeholder="Add a caption..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              disabled={isUploading}
-              className="w-full rounded-xl border border-slate-200 dark:border-neutral-850 bg-slate-50 dark:bg-neutral-950 px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-650 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
-            />
-
-            {/* Uploading Progress */}
+          {/* Bottom WhatsApp-Style Composer */}
+          <div className="w-full border-t border-neutral-900/60 bg-neutral-950/80 px-6 py-5 flex flex-col gap-4">
+            
+            {/* Upload progress if sending */}
             {isUploading && (
-              <div className="w-full space-y-1.5 animate-pulse text-left">
+              <div className="w-full space-y-1.5 animate-pulse text-left max-w-3xl mx-auto">
                 <div className="flex justify-between text-[10px] font-bold text-indigo-500">
-                  <span>Uploading...</span>
+                  <span>Uploading image...</span>
                   <span>{uploadProgress}%</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-100 dark:bg-neutral-900 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden">
                   <div className="h-full bg-indigo-500 transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             )}
 
-            <div className="flex gap-2 justify-end mt-1">
+            <div className="flex items-center gap-4 max-w-3xl w-full mx-auto">
+              
+              {/* Remove attachment */}
               <button
+                type="button"
                 onClick={handleCancelPreview}
                 disabled={isUploading}
-                className="px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-900 text-slate-550 dark:text-neutral-400 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+                className="p-3 text-neutral-400 hover:text-rose-500 hover:bg-neutral-900/50 rounded-xl transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                title="Remove image"
               >
-                Cancel
+                <Trash2 className="h-5 w-5" />
               </button>
+
+              {/* Replace attachment */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="p-3 text-neutral-400 hover:text-white hover:bg-neutral-900/50 rounded-xl transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                title="Replace image"
+              >
+                <RefreshCw className="h-5 w-5" />
+              </button>
+
+              {/* Emoji UI button */}
+              <button
+                type="button"
+                disabled={isUploading}
+                className="p-3 text-neutral-400 hover:text-white hover:bg-neutral-900/50 rounded-xl transition-all cursor-default disabled:opacity-40 shrink-0"
+                title="Emojis"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+
+              {/* Caption Input */}
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Add a caption..."
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  disabled={isUploading}
+                  className="w-full rounded-2xl border border-neutral-850 bg-neutral-900/90 py-3 px-5 text-sm text-white placeholder-neutral-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 transition-all shadow-inner"
+                />
+              </div>
+
+              {/* Circular Send Button */}
               <button
                 onClick={handleSendImage}
                 disabled={isUploading}
-                className="px-4 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+                className="p-3.5 bg-indigo-600 hover:bg-indigo-550 active:scale-95 text-white rounded-full shadow-lg transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                title="Send"
               >
                 {isUploading ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Sending
-                  </>
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  'Send Image'
+                  <Send className="h-5 w-5 translate-x-0.5" />
                 )}
               </button>
             </div>
