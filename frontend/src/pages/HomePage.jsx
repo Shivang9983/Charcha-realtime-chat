@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useChatStore } from '../stores/useChatStore';
 import Sidebar from '../components/Sidebar';
 import ChatContainer from '../components/ChatContainer';
+import Logo from '../components/Logo';
+
 
 export default function HomePage() {
   const selectedConversation = useChatStore((state) => state.selectedConversation);
@@ -57,18 +59,10 @@ export default function HomePage() {
             {/* Glowing blur background */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-indigo-500/10 dark:bg-indigo-600/5 blur-3xl pointer-events-none" />
             
-            {/* Illustration */}
             <div className="relative z-10 animate-float flex flex-col items-center">
-              <svg className="w-20 h-20 rounded-3xl shadow-[0_10px_30px_rgba(99,102,241,0.2)]" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="charchaHomeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#a855f7" />
-                  </linearGradient>
-                </defs>
-                <rect width="32" height="32" rx="9" fill="url(#charchaHomeGrad)" />
-                <path d="M9 9h14c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2h-9l-4 4v-4H9c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2zm2 3v1.5h10V12H11zm0 3.5V17h7v-1.5h-7z" fill="#ffffff" />
-              </svg>
+              <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-[0_10px_30px_rgba(99,102,241,0.2)]">
+                <Logo className="w-11 h-11 text-white" />
+              </div>
             </div>
 
             <div className="text-center max-w-sm space-y-2 relative z-10">

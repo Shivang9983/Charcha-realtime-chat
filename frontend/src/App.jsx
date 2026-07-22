@@ -8,6 +8,8 @@ import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import ToastContainer from './components/Toast';
 import NotificationContainer from './components/NotificationContainer';
+import Logo from './components/Logo';
+
 
 export default function App() {
   const authUser = useAuthStore((state) => state.authUser);
@@ -111,9 +113,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-6 max-w-xs w-full px-4 text-center animate-in fade-in zoom-in-95 duration-500">
           {/* Glowing Animated Logo */}
           <div className="relative flex items-center justify-center h-20 w-20 rounded-3xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-[0_0_35px_rgba(99,102,241,0.25)] animate-pulse-glow hover:scale-105 duration-300">
-            <svg className="w-11 h-11 text-white" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 9h14c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2h-9l-4 4v-4H9c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2zm2 3v1.5h10V12H11zm0 3.5V17h7v-1.5h-7z" fill="currentColor" />
-            </svg>
+            <Logo className="w-11 h-11 text-white" />
           </div>
 
           <div className="space-y-1 mt-2">

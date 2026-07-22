@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useToastStore } from '../stores/useToastStore';
 import { User, Mail, Lock, Loader2 } from 'lucide-react';
+import Logo from '../components/Logo';
+
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
@@ -50,11 +52,8 @@ export default function SignupPage() {
     <div className={`flex min-h-screen items-center justify-center bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 p-4 transition-all duration-500 ease-out ${mounted ? 'opacity-100' : 'opacity-0'}`}>
       <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 p-5 sm:p-8 max-h-[92vh] sm:max-h-none overflow-y-auto sm:overflow-visible text-slate-800 dark:text-slate-100 shadow-xl dark:shadow-2xl animate-page-entrance select-none">
         <div className="flex flex-col items-center gap-2">
-          {/* Pulsing logo */}
           <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md animate-pulse-glow hover:scale-105 duration-300">
-            <svg className="w-6.5 h-6.5 text-white" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 9h14c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2h-9l-4 4v-4H9c-1.1 0-2-.9-2-2v-8c0-1.1.9-2 2-2zm2 3v1.5h10V12H11zm0 3.5V17h7v-1.5h-7z" fill="currentColor" />
-            </svg>
+            <Logo className="w-6.5 h-6.5 text-white" />
           </div>
           <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-800 dark:text-white">
             Create Account
