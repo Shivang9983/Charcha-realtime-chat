@@ -412,12 +412,12 @@ export const useChatStore = create((set, get) => ({
     const { socket } = useAuthStore.getState();
     const previousConversation = get().selectedConversation;
 
-    if (previousConversation && socket) {
-      socket.emit('leaveConversation', previousConversation._id);
-    }
-
     if (previousConversation?._id === selectedConversation?._id) {
       return; // Skip redundant updates if clicking the same chat
+    }
+
+    if (previousConversation && socket) {
+      socket.emit('leaveConversation', previousConversation._id);
     }
 
     const cached = selectedConversation ? get().cachedMessages[selectedConversation._id] || [] : [];

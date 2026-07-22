@@ -1,15 +1,45 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useChatStore } from '../stores/useChatStore';
 import Sidebar from '../components/Sidebar';
 import ChatContainer from '../components/ChatContainer';
 
 export default function HomePage() {
-  const { selectedConversation } = useChatStore();
+  const selectedConversation = useChatStore((state) => state.selectedConversation);
+  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
+  const conversations = useChatStore((state) => state.conversations);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const chatIdParam = searchParams.get('chat');
+
+  // Sync from URL search params to Store state (Single Source of Truth)
+  useEffect(() => {
+    if (chatIdParam) {
+      const found = conversations.find((c) => String(c._id) === chatIdParam);
+      if (found) {
+        if (!selectedConversation || String(selectedConversation._id) !== chatIdParam) {
+          setSelectedConversation(found);
+        }
+      } else {
+        if (conversations.length > 0) {
+          if (selectedConversation) {
+            setSelectedConversation(null);
+          }
+          setSearchParams({});
+        }
+      }
+    } else {
+      if (selectedConversation) {
+        setSelectedConversation(null);
+      }
+    }
+  }, [chatIdParam, conversations, selectedConversation, setSelectedConversation, setSearchParams]);
 
   return (
     <div className={`fixed inset-0 flex bg-white dark:bg-black overflow-hidden text-slate-900 dark:text-slate-100 transition-opacity duration-300 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
