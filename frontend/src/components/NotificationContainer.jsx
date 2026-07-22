@@ -1,16 +1,16 @@
 import { useNotificationStore } from '../stores/useNotificationStore';
-import { useChatStore } from '../stores/useChatStore';
 import { X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 export default function NotificationContainer() {
   const notifications = useNotificationStore((state) => state.notifications);
   const dismissNotification = useNotificationStore((state) => state.dismissNotification);
-  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
+  const [_, setSearchParams] = useSearchParams();
 
   if (notifications.length === 0) return null;
 
   const handleNotificationClick = (notification) => {
-    setSelectedConversation(notification.conversation);
+    setSearchParams({ chat: notification.conversation._id });
     window.focus();
     dismissNotification(notification.id);
   };

@@ -10,8 +10,14 @@ import ToastContainer from './components/Toast';
 import NotificationContainer from './components/NotificationContainer';
 
 export default function App() {
-  const { authUser, checkAuth, isCheckingAuth, socket } = useAuthStore();
-  const { subscribeToMessages, unsubscribeFromMessages, getOnlineUserProfiles } = useChatStore();
+  const authUser = useAuthStore((state) => state.authUser);
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const isCheckingAuth = useAuthStore((state) => state.isCheckingAuth);
+  const socket = useAuthStore((state) => state.socket);
+
+  const subscribeToMessages = useChatStore((state) => state.subscribeToMessages);
+  const unsubscribeFromMessages = useChatStore((state) => state.unsubscribeFromMessages);
+  const getOnlineUserProfiles = useChatStore((state) => state.getOnlineUserProfiles);
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
   const [showSplash, setShowSplash] = useState(true);
   const [loadingText, setLoadingText] = useState('Syncing chat environment...');
