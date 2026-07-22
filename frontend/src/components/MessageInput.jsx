@@ -199,7 +199,7 @@ export default function MessageInput() {
       
       {/* Hide regular text input when preview composer is open */}
       {!previewUrl && (
-        <form onSubmit={handleSend} className="flex items-center gap-2.5 p-4 animate-in fade-in duration-150">
+        <form onSubmit={handleSend} className="flex items-center gap-2.5 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4 animate-in fade-in duration-150">
           {/* Attachment image button */}
           <button
             type="button"
@@ -242,7 +242,7 @@ export default function MessageInput() {
       {previewUrl && (
         <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950/98 backdrop-blur-md animate-in fade-in duration-200 select-none">
           {/* Top Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-900/60 bg-neutral-950/40 text-neutral-200">
+          <div className="flex items-center justify-between px-6 py-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-neutral-900/60 bg-neutral-950/40 text-neutral-200">
             <div className="flex items-center gap-3">
               <button
                 onClick={handleCancelPreview}
@@ -271,7 +271,7 @@ export default function MessageInput() {
           </div>
 
           {/* Bottom WhatsApp-Style Composer */}
-          <div className="w-full border-t border-neutral-900/60 bg-neutral-950/80 px-6 py-5 flex flex-col gap-4">
+          <div className="w-full border-t border-neutral-900/60 bg-neutral-950/80 px-6 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col gap-4">
             
             {/* Upload progress if sending */}
             {isUploading && (

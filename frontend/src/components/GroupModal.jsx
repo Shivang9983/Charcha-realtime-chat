@@ -98,9 +98,9 @@ export default function GroupModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 text-slate-800 dark:text-slate-100 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="flex max-h-[92vh] sm:max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 text-slate-800 dark:text-slate-100 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 p-5">
+        <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400">
               <Users className="h-5 w-5" />
@@ -116,7 +116,7 @@ export default function GroupModal({ isOpen, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-4">
           {error && (
             <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20 font-semibold animate-in fade-in duration-200">
               {error}

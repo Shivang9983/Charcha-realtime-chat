@@ -48,7 +48,7 @@ export default function SignupPage() {
 
   return (
     <div className={`flex min-h-screen items-center justify-center bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 p-4 transition-all duration-500 ease-out ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 p-8 text-slate-800 dark:text-slate-100 shadow-xl dark:shadow-2xl animate-page-entrance select-none">
+      <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 p-5 sm:p-8 max-h-[92vh] sm:max-h-none overflow-y-auto sm:overflow-visible text-slate-800 dark:text-slate-100 shadow-xl dark:shadow-2xl animate-page-entrance select-none">
         <div className="flex flex-col items-center gap-2">
           {/* Pulsing logo */}
           <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md animate-pulse-glow hover:scale-105 duration-300">

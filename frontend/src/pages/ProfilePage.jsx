@@ -55,11 +55,19 @@ export default function ProfilePage() {
     addToast('New avatar generated!', 'success');
   };
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
   return (
     <div className={`flex min-h-screen flex-col items-center justify-center bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 p-4 transition-all duration-500 ease-out ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="relative w-full max-w-md space-y-6 rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 p-8 text-slate-800 dark:text-slate-100 shadow-xl dark:shadow-2xl select-none animate-page-entrance">
+      <div className="relative w-full max-w-md space-y-6 rounded-3xl border border-slate-200 dark:border-neutral-900 bg-white dark:bg-neutral-950 p-5 sm:p-8 max-h-[92vh] sm:max-h-none overflow-y-auto sm:overflow-visible text-slate-800 dark:text-slate-100 shadow-xl dark:shadow-2xl select-none animate-page-entrance">
         <button
-          onClick={() => navigate('/')}
+          onClick={handleBack}
           className="absolute left-6 top-6 cursor-pointer rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-900 p-2.5 text-slate-500 dark:text-slate-400 transition-all hover:scale-105 hover:bg-slate-250 dark:hover:bg-neutral-800 hover:text-slate-700 dark:hover:text-slate-200 active:scale-95 shadow-xs"
           title="Go Back"
         >

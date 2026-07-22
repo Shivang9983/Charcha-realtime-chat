@@ -1084,7 +1084,7 @@ const otherTypingUsers = Object.entries(typingStatusMap)
         >
           {/* Top Bar */}
           <div
-            className="absolute top-0 inset-x-0 h-16 flex items-center justify-between px-6 bg-gradient-to-b from-black/60 to-transparent z-10"
+            className="absolute top-0 inset-x-0 h-[calc(4rem+env(safe-area-inset-top))] flex items-center justify-between px-6 pt-[env(safe-area-inset-top)] bg-gradient-to-b from-black/60 to-transparent z-10"
             onClick={(e) => e.stopPropagation()}
           >
             <span className="text-white/80 text-xs font-semibold truncate max-w-[70%]">
