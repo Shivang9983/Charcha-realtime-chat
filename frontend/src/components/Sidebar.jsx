@@ -1,5 +1,5 @@
 import { useEffect, useState, memo, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useChatStore } from '../stores/useChatStore';
 import { useToastStore } from '../stores/useToastStore';
@@ -8,16 +8,17 @@ import GroupModal from './GroupModal';
 import ThemeToggle from './ThemeToggle';
 import SidebarFooter from './SidebarFooter';
 import { SidebarSkeleton } from './Skeleton';
-import { Search, MessageSquare, Loader2, Plus, MessageCircle } from 'lucide-react';
+import { MessageSquare, Loader2, Plus, MessageCircle } from 'lucide-react';
+import SearchBar from './SearchBar';
 
 const SidebarConversationItem = memo(({
   conv,
   isSelected,
   isOnline,
   unreadCount,
-  authUser,
-  setSelectedConversation
+  authUser
 }) => {
+  const [_, setSearchParams] = useSearchParams();
   const authUserIdStr = String(authUser?._id);
   let recipient = null;
   if (!conv.isGroup && conv.participants) {
@@ -52,7 +53,7 @@ const SidebarConversationItem = memo(({
 
   return (
     <button
-      onClick={() => setSelectedConversation(conv)}
+      onClick={() => setSearchParams({ chat: conv._id })}
       className={`w-full flex items-center gap-3 p-3 transition-all duration-200 cursor-pointer border-l-4 rounded-xl ${
         isSelected
           ? 'bg-slate-100 dark:bg-neutral-900 border-indigo-500 text-indigo-600 dark:text-white font-medium'
@@ -125,8 +126,8 @@ export default function Sidebar() {
   const conversations = useChatStore((state) => state.conversations);
   const getConversations = useChatStore((state) => state.getConversations);
   const selectedConversation = useChatStore((state) => state.selectedConversation);
-  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
   const isConversationsLoading = useChatStore((state) => state.isConversationsLoading);
+  const [_, setSearchParams] = useSearchParams();
   const startConversation = useChatStore((state) => state.startConversation);
   const unreadCounts = useChatStore((state) => state.unreadCounts);
   const onlineUserProfiles = useChatStore((state) => state.onlineUserProfiles);
@@ -142,23 +143,27 @@ export default function Sidebar() {
     getConversations();
   }, [getConversations]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
+  // Trigger search when searchQuery changes (debounced from SearchBar)
+  useEffect(() => {
+    const triggerSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-    setIsSearching(true);
-    try {
-      const res = await axiosInstance.get(`/users/search?query=${searchQuery}`);
-      setSearchResults(res.data);
-    } catch (error) {
-      console.log('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+      setIsSearching(true);
+      try {
+        const res = await axiosInstance.get(`/users/search?query=${searchQuery}`);
+        setSearchResults(res.data);
+      } catch (error) {
+        console.log('Search error:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    triggerSearch();
+  }, [searchQuery]);
 
   const handleSelectOnlineUser = async (user) => {
     if (!user) return;
@@ -174,7 +179,7 @@ export default function Sidebar() {
     });
 
     if (existingConv) {
-      setSelectedConversation(existingConv);
+      setSearchParams({ chat: existingConv._id });
       setSearchQuery('');
       setSearchResults([]);
       return;
@@ -183,7 +188,7 @@ export default function Sidebar() {
     // Call API to start/get conversation if not already cached
     const newConv = await startConversation({ userId: user._id, isGroup: false });
     if (newConv) {
-      setSelectedConversation(newConv);
+      setSearchParams({ chat: newConv._id });
       setSearchQuery('');
       setSearchResults([]);
       addToast(`Chat started with ${user.username}`, 'success');
@@ -247,7 +252,7 @@ export default function Sidebar() {
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-black text-slate-800 dark:text-slate-100 select-none md:w-80 md:border-r border-slate-200/80 dark:border-neutral-900 animate-page-entrance">
       {/* Top Profile Header */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-transparent py-3.5 px-4">
+      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-900 bg-transparent py-3.5 px-4 pt-[calc(0.875rem+env(safe-area-inset-top))] md:pt-3.5">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/profile')}>
           <div className="relative">
             <img
@@ -275,32 +280,8 @@ export default function Sidebar() {
       </div>
 
       {/* User Search Panel */}
-      <div className="border-b border-slate-200/80 dark:border-neutral-900 bg-slate-50/30 dark:bg-neutral-900/30 p-3">
-        <form onSubmit={handleSearch} className="relative">
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              if (!e.target.value.trim()) setSearchResults([]);
-            }}
-            className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-955 py-2.5 pl-9 pr-12 text-xs text-slate-850 dark:text-slate-100 placeholder-slate-450 dark:placeholder-slate-650 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
-          />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-              }}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer text-xs font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
-            >
-              Clear
-            </button>
-          )}
-        </form>
+      <div className="border-b border-slate-200/80 dark:border-neutral-900 bg-transparent p-3">
+        <SearchBar onChange={setSearchQuery} isSearching={isSearching} />
       </div>
 
       {/* Main Conversation List / Search Results */}
@@ -333,7 +314,6 @@ export default function Sidebar() {
                       isOnline={isOnline}
                       unreadCount={unreadCount}
                       authUser={authUser}
-                      setSelectedConversation={setSelectedConversation}
                     />
                   );
                 })}
@@ -435,7 +415,6 @@ export default function Sidebar() {
                       isOnline={isOnline}
                       unreadCount={unreadCount}
                       authUser={authUser}
-                      setSelectedConversation={setSelectedConversation}
                     />
                   );
                 })
