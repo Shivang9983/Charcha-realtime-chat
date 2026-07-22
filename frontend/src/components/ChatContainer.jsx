@@ -377,7 +377,7 @@ const MessageBubble = memo(({
                   <span className={`text-[9px] font-bold opacity-75 ${isMe ? 'text-indigo-200/90' : 'text-slate-450 dark:text-slate-400'}`}>
                     Edited •
                   </span>
-                )}
+                )}g
                 <span className={`text-[9px] font-medium tracking-wide ${isMe ? 'text-indigo-200/90' : 'text-slate-450 dark:text-slate-400'}`}>
                   {formatTime(msg.createdAt)}
                 </span>
