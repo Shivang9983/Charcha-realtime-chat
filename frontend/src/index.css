@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -7,6 +8,7 @@
   --color-brand-secondary: #4f46e5;
   --color-brand-dark: #0f172a;
   --color-brand-light: #f8fafc;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Custom scrollbar layout styling */
@@ -189,4 +191,188 @@
 .highlight-message {
   animation: highlight-flash 1.5s ease-out;
 }
+
+/* ==========================================
+   Premium Loading Screen Animations
+   ========================================== */
+
+/* Subtle background shifting (GPU-accelerated via transform/opacity only) */
+@keyframes aurora-shift-1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.04;
+  }
+  50% {
+    transform: translate3d(20px, 15px, 0) scale(1.1);
+    opacity: 0.07;
+  }
+}
+@keyframes aurora-shift-2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.03;
+  }
+  50% {
+    transform: translate3d(-15px, -20px, 0) scale(1.05);
+    opacity: 0.06;
+  }
+}
+@keyframes aurora-shift-3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.03;
+  }
+  50% {
+    transform: translate3d(15px, -10px, 0) scale(1.08);
+    opacity: 0.05;
+  }
+}
+
+.aurora-glow-1 {
+  animation: aurora-shift-1 18s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+.aurora-glow-2 {
+  animation: aurora-shift-2 22s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+.aurora-glow-3 {
+  animation: aurora-shift-3 20s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+/* Joint float and breath for the ghost body wrapper */
+@keyframes ghost-float-breath {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) scale3d(1.02, 1.02, 1);
+  }
+}
+
+.ghost-float-breath {
+  animation: ghost-float-breath 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Shadow scaling and opacity pulsing (No expensive blur animations) */
+@keyframes ghost-shadow {
+  0%, 100% {
+    transform: scale3d(1, 1, 1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale3d(0.8, 0.8, 1);
+    opacity: 0.22;
+  }
+}
+
+.ghost-shadow {
+  animation: ghost-shadow 5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Glow pulse behind the ghost logo */
+@keyframes logo-glow-pulse {
+  0%, 100% {
+    transform: translate3d(-50%, -50%, 0) scale3d(1, 1, 1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(-50%, -50%, 0) scale3d(1.15, 1.15, 1);
+    opacity: 0.78;
+  }
+}
+
+.logo-glow-pulse {
+  animation: logo-glow-pulse 5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Blink animation for the SVG eyes */
+@keyframes ghost-eye-blink {
+  0%, 90%, 93%, 100% {
+    transform: scaleY(1);
+  }
+  91.5% {
+    transform: scaleY(0.08);
+  }
+}
+
+.ghost-eye-left {
+  transform-origin: 45px 44px;
+  animation: ghost-eye-blink 6s infinite ease-in-out;
+}
+
+.ghost-eye-right {
+  transform-origin: 67px 44px;
+  animation: ghost-eye-blink 6s infinite ease-in-out;
+}
+
+/* Particle fade in/out naturally */
+@keyframes particle-fade {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Orbit paths for particles (GPU accelerated, translate relative to parent center) */
+@keyframes orbit-clockwise {
+  0% {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg) translate3d(var(--orbit-radius), 0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(360deg) translate3d(var(--orbit-radius), 0, 0) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-counter-clockwise {
+  0% {
+    transform: translate3d(-50%, -50%, 0) rotate(360deg) translate3d(var(--orbit-radius), 0, 0) rotate(-360deg);
+  }
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg) translate3d(var(--orbit-radius), 0, 0) rotate(0deg);
+  }
+}
+
+/* Orbiting particle standard definitions */
+.orbit-particle-element {
+  will-change: transform, opacity;
+}
+
+/* Reduced motion compliance */
+@media (prefers-reduced-motion: reduce) {
+  .ghost-float-breath,
+  .ghost-shadow,
+  .logo-glow-pulse,
+  .ghost-eye-left,
+  .ghost-eye-right,
+  .aurora-glow-1,
+  .aurora-glow-2,
+  .aurora-glow-3 {
+    animation: none !important;
+    transform: none !important;
+  }
+  
+  .logo-glow-pulse {
+    transform: translate3d(-50%, -50%, 0) !important;
+    opacity: 0.55 !important;
+  }
+
+  .ghost-shadow {
+    opacity: 0.4 !important;
+    transform: scale3d(1, 1, 1) !important;
+  }
+
+  .orbit-particle-element {
+    animation: none !important;
+    opacity: 0.45 !important;
+    transform: translate3d(-50%, -50%, 0) rotate(45deg) translate3d(var(--orbit-radius), 0, 0) !important;
+  }
+}
+
 
