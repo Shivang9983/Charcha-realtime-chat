@@ -84,6 +84,7 @@ export const useChatStore = create((set, get) => ({
   unreadCounts: {},
   cachedMessages: {},
   onlineUserProfiles: [],
+  confirmedMessageIds: {},
 
   setReplyingToMessage: (message) => set({ replyingToMessage: message }),
 
@@ -175,36 +176,38 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (content, fileData = null, onUploadProgress = null) => {
     const { selectedConversation, replyingToMessage } = get();
     const authUser = useAuthStore.getState().authUser;
-    const tempId = `temp-${Date.now()}`;
+    
+    // Generate secure temporary ID using crypto.randomUUID()
+    const tempId = `temp-${crypto.randomUUID()}`;
 
-    let optimisticMsg = null;
-    if (fileData) {
-      optimisticMsg = {
-        _id: tempId,
-        sender: authUser,
-        conversationId: selectedConversation._id,
-        content: content || '',
-        image: fileData.image,
-        imageWidth: fileData.width,
-        imageHeight: fileData.height,
-        createdAt: new Date().toISOString(),
-        readBy: [authUser._id],
-        isOptimistic: true,
-        status: 'uploading',
-        replyTo: replyingToMessage || null,
+    const optimisticMsg = {
+      _id: tempId,
+      sender: authUser,
+      conversationId: selectedConversation._id,
+      content: content || '',
+      image: fileData ? fileData.image : null,
+      imageWidth: fileData ? fileData.width : null,
+      imageHeight: fileData ? fileData.height : null,
+      createdAt: new Date().toISOString(),
+      readBy: [authUser._id],
+      isOptimistic: true,
+      status: fileData ? 'uploading' : 'sending',
+      replyTo: replyingToMessage || null,
+      retryData: { content, fileData },
+    };
+
+    set((state) => {
+      const updatedMessages = [...state.messages, optimisticMsg];
+      return {
+        messages: updatedMessages,
+        cachedMessages: {
+          ...state.cachedMessages,
+          [selectedConversation._id]: updatedMessages,
+        },
       };
+    });
 
-      set((state) => {
-        const updatedMessages = [...state.messages, optimisticMsg];
-        return {
-          messages: updatedMessages,
-          cachedMessages: {
-            ...state.cachedMessages,
-            [selectedConversation._id]: updatedMessages,
-          },
-        };
-      });
-    }
+    set({ replyingToMessage: null });
 
     try {
       const payload = { content };
@@ -226,37 +229,47 @@ export const useChatStore = create((set, get) => ({
         },
       });
 
-      if (fileData) {
-        set((state) => {
-          const updatedMessages = state.messages.map((m) =>
-            m._id === tempId ? res.data : m
+      const confirmedMsg = res.data;
+
+      set((state) => {
+        // Prevent duplicates: check if the socket listener already replaced this message
+        const alreadyReplaced = state.messages.some((m) => m._id === confirmedMsg._id);
+
+        let updatedMessages;
+        if (alreadyReplaced) {
+          updatedMessages = state.messages.filter((m) => m._id !== tempId);
+        } else {
+          updatedMessages = state.messages.map((m) =>
+            m._id === tempId ? confirmedMsg : m
           );
-          return {
-            messages: updatedMessages,
-            cachedMessages: {
-              ...state.cachedMessages,
-              [selectedConversation._id]: updatedMessages,
-            },
-          };
-        });
-      }
-      set({ replyingToMessage: null });
+        }
+
+        return {
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [selectedConversation._id]: updatedMessages,
+          },
+          confirmedMessageIds: {
+            ...state.confirmedMessageIds,
+            [confirmedMsg._id]: tempId,
+          },
+        };
+      });
     } catch (error) {
       console.log('Error sending message:', error);
-      if (fileData) {
-        set((state) => {
-          const updatedMessages = state.messages.map((m) =>
-            m._id === tempId ? { ...m, status: 'failed', retryData: { content, fileData } } : m
-          );
-          return {
-            messages: updatedMessages,
-            cachedMessages: {
-              ...state.cachedMessages,
-              [selectedConversation._id]: updatedMessages,
-            },
-          };
-        });
-      }
+      set((state) => {
+        const updatedMessages = state.messages.map((m) =>
+          m._id === tempId ? { ...m, status: 'failed' } : m
+        );
+        return {
+          messages: updatedMessages,
+          cachedMessages: {
+            ...state.cachedMessages,
+            [selectedConversation._id]: updatedMessages,
+          },
+        };
+      });
       throw error;
     }
   },
@@ -264,9 +277,10 @@ export const useChatStore = create((set, get) => ({
   retrySendMessage: async (tempId, content, fileData) => {
     const { selectedConversation } = get();
 
+    // Reset status back to sending / uploading while retrying
     set((state) => {
       const updatedMessages = state.messages.map((m) =>
-        m._id === tempId ? { ...m, status: 'uploading' } : m
+        m._id === tempId ? { ...m, status: fileData ? 'uploading' : 'sending' } : m
       );
       return {
         messages: updatedMessages,
@@ -286,16 +300,30 @@ export const useChatStore = create((set, get) => ({
       }
 
       const res = await axiosInstance.post(`/messages/send/${selectedConversation._id}`, payload);
+      const confirmedMsg = res.data;
 
       set((state) => {
-        const updatedMessages = state.messages.map((m) =>
-          m._id === tempId ? res.data : m
-        );
+        // Prevent duplicates
+        const alreadyReplaced = state.messages.some((m) => m._id === confirmedMsg._id);
+
+        let updatedMessages;
+        if (alreadyReplaced) {
+          updatedMessages = state.messages.filter((m) => m._id !== tempId);
+        } else {
+          updatedMessages = state.messages.map((m) =>
+            m._id === tempId ? confirmedMsg : m
+          );
+        }
+
         return {
           messages: updatedMessages,
           cachedMessages: {
             ...state.cachedMessages,
             [selectedConversation._id]: updatedMessages,
+          },
+          confirmedMessageIds: {
+            ...state.confirmedMessageIds,
+            [confirmedMsg._id]: tempId,
           },
         };
       });
@@ -461,15 +489,26 @@ export const useChatStore = create((set, get) => ({
 
         // Sync optimistic message if socket event arrives first
         if (isFromMe) {
-          const optIndex = messages.findIndex((msg) => msg.isOptimistic && msg.status === 'uploading');
+          const optIndex = messages.findIndex((msg) =>
+            msg.isOptimistic &&
+            (msg.status === 'uploading' || msg.status === 'sending') &&
+            (message.image ? !!msg.image : !msg.image)
+          );
+
           if (optIndex !== -1) {
             const updatedMessages = [...messages];
+            const tempId = updatedMessages[optIndex]._id;
+
             updatedMessages[optIndex] = message;
             set({ messages: updatedMessages });
             set((state) => ({
               cachedMessages: {
                 ...state.cachedMessages,
                 [message.conversationId]: updatedMessages,
+              },
+              confirmedMessageIds: {
+                ...state.confirmedMessageIds,
+                [message._id]: tempId,
               },
             }));
             return;

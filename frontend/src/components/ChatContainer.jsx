@@ -142,7 +142,7 @@ const MessageBubble = memo(({
           onTouchMove={onTouchMove}
         >
           {/* Hover Action Bar */}
-          {!msg.isDeleted && (
+          {!msg.isDeleted && !msg.isOptimistic && (
             <div
               className={`absolute -top-4.5 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 shadow-md rounded-xl p-1 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5 ${
                 isReactionSelectorOpen ? 'opacity-100' : ''
@@ -174,7 +174,7 @@ const MessageBubble = memo(({
           )}
 
           {/* Reaction Selector Popover */}
-          {!msg.isDeleted && isReactionSelectorOpen && (
+          {!msg.isDeleted && !msg.isOptimistic && isReactionSelectorOpen && (
             <>
               <div
                 className="fixed inset-0 z-10 cursor-default"
@@ -394,10 +394,12 @@ const MessageBubble = memo(({
             </div>
           ) : (
             <div
-              className={`px-4 py-2.5 shadow-xs border ${roundedClasses} transition-shadow duration-200 hover:shadow-md ${
+              className={`px-4 py-2.5 shadow-xs border ${roundedClasses} transition-all duration-200 hover:shadow-md ${
                 isMe
                   ? 'bg-indigo-600 border-indigo-650 text-white'
                   : 'bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 border-slate-200 dark:border-neutral-800'
+              } ${msg.isOptimistic && msg.status === 'sending' ? 'opacity-70 animate-pulse' : ''} ${
+                msg.isOptimistic && msg.status === 'failed' ? 'border-rose-500 bg-indigo-950/40 text-slate-250' : ''
               }`}
             >
               {msg.replyTo && (
@@ -442,7 +444,9 @@ const MessageBubble = memo(({
                 </span>
                 {isMe && (
                   <span className="flex-shrink-0">
-                    {read ? (
+                    {msg.isOptimistic && msg.status === 'sending' ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-white/70" />
+                    ) : read ? (
                       <CheckCheck className="h-3 w-3 text-sky-300 animate-pulse" />
                     ) : (
                       <Check className="h-3 w-3 text-indigo-250" />
@@ -450,6 +454,33 @@ const MessageBubble = memo(({
                   </span>
                 )}
               </div>
+
+              {/* Failed Message Status Bar (with Retry & Delete locally) */}
+              {msg.isOptimistic && msg.status === 'failed' && (
+                <div className="mt-2.5 pt-2 border-t border-white/20 dark:border-neutral-800 flex items-center justify-between gap-4 text-[10px] font-bold animate-in slide-in-from-top-1 fade-in duration-200">
+                  <span className="text-rose-250 flex items-center gap-1 select-none">❌ Failed to send</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetryClick(msg._id, msg.content, msg.retryData?.fileData);
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 text-indigo-600 rounded cursor-pointer transition-colors shadow-sm active:scale-95"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteOptimistic(msg._id);
+                      }}
+                      className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer transition-colors shadow-sm active:scale-95"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -505,6 +536,7 @@ const otherTypingUsers = Object.entries(typingStatusMap)
   .filter(([id]) => id !== authUserId)
   .map(([_, name]) => name);
   const scrollContainerRef = useRef(null);
+  const prevMessagesLength = useRef(messages.length);
   const [activeReactionId, setActiveReactionId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
 
@@ -750,15 +782,28 @@ const otherTypingUsers = Object.entries(typingStatusMap)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewerImageUrl]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages (maintains position stable on updates/confirmations)
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: scrollContainerRef.current.scrollHeight,
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+
+    // Check if the user is currently near the bottom of the chat (within a 120px threshold)
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+
+    const hasNewMessage = messages.length > prevMessagesLength.current;
+    const lastMsg = messages[messages.length - 1];
+    const lastMsgIsMe = lastMsg && getSenderId(lastMsg.sender) === String(authUser?._id);
+
+    // Trigger scroll if user sent a new message, or if they were already reading at the bottom
+    if (isNearBottom || (hasNewMessage && lastMsgIsMe)) {
+      container.scrollTo({
+        top: container.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [messages]);
+
+    prevMessagesLength.current = messages.length;
+  }, [messages, authUser]);
 
   const handleCopy = useCallback((text, id) => {
     navigator.clipboard.writeText(text).then(() => {
