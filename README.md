@@ -65,26 +65,6 @@ https://github.com/user-attachments/assets/your-demo-video-link
 
 ---
 
-# 📸 Screenshots
-
-### Login Page
-
-<img src="screenshots/login.png" width="100%" />
-
----
-
-### Chat Interface
-
-<img src="screenshots/chat.png" width="100%" />
-
----
-
-### Mobile View
-
-<img src="screenshots/mobile.png" width="40%" />
-
----
-
 # 🛠 Tech Stack
 
 ## Frontend
