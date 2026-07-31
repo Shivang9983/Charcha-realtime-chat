@@ -1,53 +1,87 @@
 <div align="center">
 
-# 💬 Charcha – Real-Time Chat Application
+# 💬 Charcha
 
-</div>
+### Modern Real-Time Chat Application
 
-<div align="center">
+A full-stack real-time messaging application built with the **MERN Stack**, **Socket.IO**, and **Zustand**, focused on performance, scalability, and a premium user experience.
 
-![React](https://img.shields.io/badge/React-19-blue?logo=react)
-![Node.js](https://img.shields.io/badge/Node.js-Express-green?logo=node.js)
-![MongoDB](https://img.shields.io/badge/MongoDB-Database-green?logo=mongodb)
-![Socket.IO](https://img.shields.io/badge/Socket.IO-Real--Time-black?logo=socketdotio)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express.js-000000?logo=express)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?logo=socketdotio)
 ![JWT](https://img.shields.io/badge/Auth-JWT-orange)
-![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-Styling-38BDF8?logo=tailwindcss)
-
-### 🚀 A modern full-stack real-time chat application built with the MERN Stack.
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?logo=tailwindcss)
 
 </div>
 
 ---
 
-## 📌 Overview
+# 📖 Overview
 
-**Charcha** is a full-stack real-time chat application that enables users to communicate instantly using Socket.IO.
-
-The application supports secure authentication, one-to-one messaging, group conversations, typing indicators, read receipts, emoji reactions, online user tracking, and a responsive modern UI.
-
-The project was built to explore real-time communication, state management, and scalable MERN architecture.
+**Charcha** is a modern real-time chat application inspired by popular messaging platforms. It enables users to communicate instantly with a fast, responsive, and production-inspired interface. The project emphasizes scalable architecture, efficient state management, and seamless real-time communication using Socket.IO.
 
 ---
 
-## ✨ Features
+# ✨ Features
 
-- 🔐 Secure JWT Authentication
-- 👤 User Registration & Login
-- 💬 One-to-One Chat
-- 👥 Group Chat Support
-- ⚡ Real-Time Messaging with Socket.IO
-- ✍️ Live Typing Indicator
-- ✅ Read Receipts
-- 😀 Emoji Reactions
-- 📋 Copy Message
-- 🔗 Automatic Link Detection
-- 🟢 Online Users Status
-- 📅 Date Separators
-- 📌 Smart Message Grouping
-- 🔄 Auto Scroll
-- 🌙 Light & Dark Theme
-- 🖼️ User Profile & Avatar
-- 📱 Fully Responsive Design
+### 🔐 Authentication
+- Secure JWT Authentication
+- User Registration & Login
+- Protected Routes
+- HTTP-only Cookie Authentication
+
+### 💬 Messaging
+- One-to-One Chat
+- Group Conversations
+- Real-Time Messaging
+- Optimistic UI Updates
+- Read Receipts
+- Typing Indicators
+- Smart Message Grouping
+- Automatic Scroll to Latest Messages
+
+### 👥 User Experience
+- Online / Offline Status
+- Responsive Mobile & Desktop UI
+- Premium Loading Screen
+- Modern Sidebar Navigation
+- Conversation Search
+
+### 🖼️ Media
+- Image Sharing
+- Cloudinary Integration
+
+---
+
+# 🎥 Demo
+
+> 📹 **Project Demo Video**
+
+https://github.com/user-attachments/assets/your-demo-video-link
+
+*(Replace this with your GitHub video link after uploading your demo.)*
+
+---
+
+# 📸 Screenshots
+
+### Login Page
+
+<img src="screenshots/login.png" width="100%" />
+
+---
+
+### Chat Interface
+
+<img src="screenshots/chat.png" width="100%" />
+
+---
+
+### Mobile View
+
+<img src="screenshots/mobile.png" width="40%" />
 
 ---
 
@@ -55,11 +89,12 @@ The project was built to explore real-time communication, state management, and 
 
 ## Frontend
 
-- React.js
+- React 19
 - Zustand
 - Tailwind CSS
 - Axios
 - Socket.IO Client
+- React Router DOM
 - Lucide React
 
 ## Backend
@@ -71,29 +106,32 @@ The project was built to explore real-time communication, state management, and 
 - Socket.IO
 - JWT Authentication
 - bcrypt
+- Cloudinary
 
 ---
 
 # 📂 Project Structure
 
 ```text
-Charcha/
+Charcha
 │
-├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── utils/
-│   ├── socket.js
+├── backend
+│   ├── config
+│   ├── controllers
+│   ├── middleware
+│   ├── models
+│   ├── routes
+│   ├── utils
+│   ├── socket
 │   └── server.js
 │
-└── frontend/
-    ├── components/
-    ├── pages/
-    ├── stores/
-    ├── lib/
+└── frontend
+    ├── components
+    ├── pages
+    ├── store
+    ├── hooks
+    ├── lib
+    ├── assets
     └── App.jsx
 ```
 
@@ -224,13 +262,19 @@ npm install
 ```env
 PORT=5001
 
-MONGO_URI=your_mongodb_connection
+MONGO_URI=your_mongodb_uri
 
-JWT_SECRET=your_secret_key
+JWT_SECRET=your_secret
 
 CLIENT_URL=http://localhost:5173
 
 NODE_ENV=development
+
+CLOUDINARY_CLOUD_NAME=
+
+CLOUDINARY_API_KEY=
+
+CLOUDINARY_API_SECRET=
 ```
 
 ---
@@ -270,6 +314,8 @@ npm run dev
 Full Stack Developer
 
 GitHub: https://github.com/Shivang9983
+
+Linkdin:https://www.linkedin.com/in/shivang-kumar-snow/
 
 ---
 
