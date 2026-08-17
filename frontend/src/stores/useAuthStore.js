@@ -84,17 +84,22 @@ export const useAuthStore = create((set, get) => ({
     const { authUser, socket } = get();
     if (!authUser || socket?.connected) return;
 
+    // withCredentials ensures the httpOnly jwt cookie rides along on the socket
+    // handshake (both the polling and websocket transports) so the server can
+    // authenticate this connection - the server no longer trusts a client-supplied
+    // userId for identity.
     const newSocket = io(SOCKET_URL, {
-      query: {
-        userId: authUser._id,
-      },
+      withCredentials: true,
     });
 
-    newSocket.connect();
     set({ socket: newSocket });
 
     newSocket.on('getOnlineUsers', (users) => {
       set({ onlineUsers: users });
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
     });
   },
 
