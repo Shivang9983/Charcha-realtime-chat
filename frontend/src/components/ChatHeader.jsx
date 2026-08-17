@@ -1,12 +1,15 @@
 import { useChatStore } from '../stores/useChatStore';
 import { useAuthStore } from '../stores/useAuthStore';
-import { ArrowLeft, Users } from 'lucide-react';
+import { useCallStore } from '../stores/useCallStore';
+import { ArrowLeft, Users, Phone } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function ChatHeader() {
   const selectedConversation = useChatStore((state) => state.selectedConversation);
   const authUser = useAuthStore((state) => state.authUser);
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
+  const callStatus = useCallStore((state) => state.callStatus);
+  const startCall = useCallStore((state) => state.startCall);
   const navigate = useNavigate();
   const [_, setSearchParams] = useSearchParams();
 
@@ -73,6 +76,18 @@ export default function ChatHeader() {
           </p>
         </div>
       </div>
+
+      {!selectedConversation.isGroup && recipient && (
+        <button
+          onClick={() => startCall(selectedConversation._id, recipient)}
+          disabled={!isOnline || callStatus !== 'idle'}
+          className="p-2.5 rounded-xl text-indigo-500 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-all duration-200 cursor-pointer active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+          title={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
+          aria-label={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
+        >
+          <Phone className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 }

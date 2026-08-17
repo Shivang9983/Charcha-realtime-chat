@@ -5,6 +5,7 @@ import { parse as parseCookie } from 'cookie';
 
 import { verifyAuthToken } from './middleware/auth.middleware.js';
 import Conversation from './models/conversation.model.js';
+import { registerCallHandlers } from './callSignaling.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,8 @@ io.on('connection', (socket) => {
 
   userSocketMap[userId] = socket.id;
   io.emit('getOnlineUsers', Object.keys(userSocketMap));
+
+  registerCallHandlers(io, socket, getReceiverSocketId);
 
   // Join a room for a specific conversation - only if the socket's authenticated
   // user is actually a participant, otherwise this would let anyone eavesdrop on
