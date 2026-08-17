@@ -2,6 +2,7 @@ import Conversation from '../models/conversation.model.js';
 import Message from '../models/message.model.js';
 import { getReceiverSocketId, io } from '../socket.js';
 import cloudinary from '../utils/cloudinary.js';
+import { validateImagePayload } from '../utils/validateImage.js';
 
 export const getConversations = async (req, res) => {
   try {
@@ -118,10 +119,21 @@ export const sendMessage = async (req, res) => {
 
     let imageUrl = null;
     if (image) {
-      const uploadResponse = await cloudinary.uploader.upload(image, {
-        folder: 'charcha_chats',
-      });
-      imageUrl = uploadResponse.secure_url;
+      const validation = validateImagePayload(image);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(image, {
+          folder: 'charcha_chats',
+          resource_type: 'image',
+        });
+        imageUrl = uploadResponse.secure_url;
+      } catch (uploadError) {
+        console.error('Error uploading image to Cloudinary:', uploadError.message);
+        return res.status(400).json({ error: 'Failed to process image' });
+      }
     }
 
     const newMessage = new Message({
