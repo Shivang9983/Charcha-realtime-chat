@@ -38,12 +38,14 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
   // Caller starts a call. Responds via ack so the caller gets a definitive,
   // synchronous reason (offline/busy/not-a-participant) instead of guessing
   // from a timeout.
-  socket.on('call:invite', async ({ conversationId, calleeId }, ack) => {
+  socket.on('call:invite', async ({ conversationId, calleeId, callType }, ack) => {
     const respond = typeof ack === 'function' ? ack : () => {};
     try {
       if (!conversationId || !calleeId) {
         return respond({ error: 'invalid_request', message: 'Missing conversation or callee' });
       }
+
+      const resolvedCallType = callType === 'video' ? 'video' : 'voice';
 
       if (userActiveCallMap.has(userId)) {
         return respond({ error: 'busy', message: 'You are already in a call' });
@@ -86,6 +88,7 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
         conversationId,
         callerId: userId,
         calleeId,
+        callType: resolvedCallType,
         status: 'ringing',
         timeoutHandle,
       });
@@ -95,6 +98,7 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
       io.to(calleeSocketId).emit('call:incoming', {
         callId,
         conversationId,
+        callType: resolvedCallType,
         caller: { _id: userId, username: socket.data.username },
       });
 
@@ -152,6 +156,18 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     const otherPartyId = getOtherPartyId(call, userId);
     const socketId = getReceiverSocketId(otherPartyId);
     if (socketId) io.to(socketId).emit('call:ice-candidate', { callId, candidate });
+  });
+
+  // Relay a mute/camera-off toggle so the other party's UI can show an
+  // accurate "camera off"/"muted" indicator instead of just a frozen black
+  // frame or silence with no explanation.
+  socket.on('call:media-state', ({ callId, audio, video }) => {
+    const call = activeCalls.get(callId);
+    if (!call || (call.callerId !== userId && call.calleeId !== userId)) return;
+
+    const otherPartyId = getOtherPartyId(call, userId);
+    const socketId = getReceiverSocketId(otherPartyId);
+    if (socketId) io.to(socketId).emit('call:media-state', { callId, audio, video });
   });
 
   // Either party hangs up.

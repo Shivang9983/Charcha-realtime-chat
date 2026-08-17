@@ -1,7 +1,7 @@
 import { useChatStore } from '../stores/useChatStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useCallStore } from '../stores/useCallStore';
-import { ArrowLeft, Users, Phone } from 'lucide-react';
+import { ArrowLeft, Users, Phone, Video } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function ChatHeader() {
@@ -78,15 +78,26 @@ export default function ChatHeader() {
       </div>
 
       {!selectedConversation.isGroup && recipient && (
-        <button
-          onClick={() => startCall(selectedConversation._id, recipient)}
-          disabled={!isOnline || callStatus !== 'idle'}
-          className="p-2.5 rounded-xl text-indigo-500 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-all duration-200 cursor-pointer active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
-          title={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
-          aria-label={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
-        >
-          <Phone className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => startCall(selectedConversation._id, recipient, 'voice')}
+            disabled={!isOnline || callStatus !== 'idle'}
+            className="p-2.5 rounded-xl text-indigo-500 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-all duration-200 cursor-pointer active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+            title={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
+            aria-label={isOnline ? `Call ${chatName}` : `${chatName} is offline`}
+          >
+            <Phone className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => startCall(selectedConversation._id, recipient, 'video')}
+            disabled={!isOnline || callStatus !== 'idle'}
+            className="p-2.5 rounded-xl text-indigo-500 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-all duration-200 cursor-pointer active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
+            title={isOnline ? `Video call ${chatName}` : `${chatName} is offline`}
+            aria-label={isOnline ? `Video call ${chatName}` : `${chatName} is offline`}
+          >
+            <Video className="h-5 w-5" />
+          </button>
+        </div>
       )}
     </div>
   );

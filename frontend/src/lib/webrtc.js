@@ -28,10 +28,32 @@ export const createPeerConnection = ({ onIceCandidate, onTrack, onConnectionStat
   return pc;
 };
 
-export const getLocalAudioStream = () => {
-  return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+/**
+ * Requests local media for a call. Video calls ask for a specific facingMode
+ * (front/'user' by default) so switchCamera-style flows have a starting point
+ * to flip from; voice calls never touch the camera at all.
+ */
+export const getLocalMediaStream = (callType, facingMode = 'user') => {
+  return navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: callType === 'video' ? { facingMode } : false,
+  });
 };
 
 export const stopStream = (stream) => {
   stream?.getTracks().forEach((track) => track.stop());
+};
+
+/**
+ * Whether the current device exposes more than one camera - used to decide
+ * whether a "switch camera" control makes sense to show at all (most desktops
+ * have zero or one, most phones have at least two).
+ */
+export const hasMultipleCameras = async () => {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === 'videoinput').length > 1;
+  } catch {
+    return false;
+  }
 };
