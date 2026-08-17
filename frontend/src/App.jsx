@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from './stores/useAuthStore';
 import { useChatStore } from './stores/useChatStore';
+import { useCallStore } from './stores/useCallStore';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -9,6 +10,7 @@ import ProfilePage from './pages/ProfilePage';
 import ToastContainer from './components/Toast';
 import NotificationContainer from './components/NotificationContainer';
 import LoadingScreen from './components/LoadingScreen';
+import CallModal from './components/CallModal';
 
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
   const unsubscribeFromMessages = useChatStore((state) => state.unsubscribeFromMessages);
   const getOnlineUserProfiles = useChatStore((state) => state.getOnlineUserProfiles);
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
+  const subscribeToCallEvents = useCallStore((state) => state.subscribeToCallEvents);
+  const unsubscribeFromCallEvents = useCallStore((state) => state.unsubscribeFromCallEvents);
   const [showSplash, setShowSplash] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const mountTimeRef = useRef(Date.now());
@@ -41,6 +45,13 @@ export default function App() {
       return () => unsubscribeFromMessages();
     }
   }, [authUser, socket, subscribeToMessages, unsubscribeFromMessages]);
+
+  useEffect(() => {
+    if (authUser && socket) {
+      subscribeToCallEvents();
+      return () => unsubscribeFromCallEvents();
+    }
+  }, [authUser, socket, subscribeToCallEvents, unsubscribeFromCallEvents]);
 
   useEffect(() => {
     if (authUser && socket) {
@@ -95,6 +106,7 @@ export default function App() {
       </Routes>
       <ToastContainer />
       <NotificationContainer />
+      <CallModal />
     </div>
   );
 }

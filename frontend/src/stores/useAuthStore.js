@@ -82,19 +82,30 @@ export const useAuthStore = create((set, get) => ({
 
   connectSocket: () => {
     const { authUser, socket } = get();
-    if (!authUser || socket?.connected) return;
+    // Guard on the socket's existence, not `.connected` - a socket that exists
+    // but hasn't finished its handshake yet is still falsy for `.connected`,
+    // so checking that alone lets a rapid double-call (e.g. React StrictMode's
+    // dev-mode double effect invocation) slip through and open a second,
+    // orphaned connection. disconnectSocket() is the only path that clears
+    // `socket` back to null, so this only ever re-connects after a real logout.
+    if (!authUser || socket) return;
 
+    // withCredentials ensures the httpOnly jwt cookie rides along on the socket
+    // handshake (both the polling and websocket transports) so the server can
+    // authenticate this connection - the server no longer trusts a client-supplied
+    // userId for identity.
     const newSocket = io(SOCKET_URL, {
-      query: {
-        userId: authUser._id,
-      },
+      withCredentials: true,
     });
 
-    newSocket.connect();
     set({ socket: newSocket });
 
     newSocket.on('getOnlineUsers', (users) => {
       set({ onlineUsers: users });
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
     });
   },
 
