@@ -1,18 +1,8 @@
 import crypto from 'crypto';
 import Conversation from './models/conversation.model.js';
 
-// WebRTC call signaling. Socket.IO only ever relays SDP offers/answers and ICE
-// candidates between the two participants of a call - the actual audio/video
-// travels peer-to-peer once negotiation succeeds (STUN-only for now; a TURN
-// server can be added later purely as an extra ICE server entry on the
-// frontend, no signaling changes needed).
-//
-// State is in-memory, same trade-off as the online-presence map in socket.js:
-// fine for a single backend instance, would need a shared store (e.g. Redis)
-// to support calls correctly across multiple instances.
-
-const activeCalls = new Map(); // callId -> { callId, conversationId, callerId, calleeId, status, timeoutHandle }
-const userActiveCallMap = new Map(); // userId -> callId
+const activeCalls = new Map(); 
+const userActiveCallMap = new Map(); 
 
 const RING_TIMEOUT_MS = 30_000;
 
@@ -27,17 +17,9 @@ const cleanupCall = (callId) => {
   activeCalls.delete(callId);
 };
 
-/**
- * Registers call-signaling event handlers on a single authenticated socket.
- * Must be called after the socket's identity (socket.data.userId) has already
- * been verified by the io.use() handshake middleware in socket.js.
- */
 export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
   const userId = socket.data.userId;
-
-  // Caller starts a call. Responds via ack so the caller gets a definitive,
-  // synchronous reason (offline/busy/not-a-participant) instead of guessing
-  // from a timeout.
+  
   socket.on('call:invite', async ({ conversationId, calleeId, callType }, ack) => {
     const respond = typeof ack === 'function' ? ack : () => {};
     try {
@@ -51,7 +33,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
         return respond({ error: 'busy', message: 'You are already in a call' });
       }
 
-      // Only 1:1 calls for now - group calling is a larger, separate feature.
       const conversation = await Conversation.findOne({
         _id: conversationId,
         isGroup: false,
@@ -109,7 +90,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     }
   });
 
-  // Callee accepts or rejects a ringing call.
   socket.on('call:respond', ({ callId, accept }, ack) => {
     const respond = typeof ack === 'function' ? ack : () => {};
     const call = activeCalls.get(callId);
@@ -135,10 +115,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     respond({ ok: true });
   });
 
-  // Relay a WebRTC SDP offer/answer to the other participant of this call.
-  // Authorization: only the two established parties of callId may use it -
-  // callId alone is not guessable-and-useful the way a conversationId could
-  // be, but we still verify membership the same way joinConversation does.
   socket.on('call:sdp', ({ callId, description }) => {
     const call = activeCalls.get(callId);
     if (!call || (call.callerId !== userId && call.calleeId !== userId)) return;
@@ -148,7 +124,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     if (socketId) io.to(socketId).emit('call:sdp', { callId, description });
   });
 
-  // Relay an ICE candidate to the other participant of this call.
   socket.on('call:ice-candidate', ({ callId, candidate }) => {
     const call = activeCalls.get(callId);
     if (!call || (call.callerId !== userId && call.calleeId !== userId)) return;
@@ -158,9 +133,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     if (socketId) io.to(socketId).emit('call:ice-candidate', { callId, candidate });
   });
 
-  // Relay a mute/camera-off toggle so the other party's UI can show an
-  // accurate "camera off"/"muted" indicator instead of just a frozen black
-  // frame or silence with no explanation.
   socket.on('call:media-state', ({ callId, audio, video }) => {
     const call = activeCalls.get(callId);
     if (!call || (call.callerId !== userId && call.calleeId !== userId)) return;
@@ -170,7 +142,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     if (socketId) io.to(socketId).emit('call:media-state', { callId, audio, video });
   });
 
-  // Either party hangs up.
   socket.on('call:end', ({ callId }) => {
     const call = activeCalls.get(callId);
     if (!call || (call.callerId !== userId && call.calleeId !== userId)) return;
@@ -181,8 +152,6 @@ export const registerCallHandlers = (io, socket, getReceiverSocketId) => {
     cleanupCall(callId);
   });
 
-  // If this socket disconnects mid-call, tell the other party instead of
-  // leaving them ringing or "connected" forever.
   socket.on('disconnect', () => {
     const callId = userActiveCallMap.get(userId);
     if (!callId) return;
